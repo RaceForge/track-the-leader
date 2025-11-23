@@ -1,1 +1,52 @@
-<p>race-viewer works!</p>
+@if (!videoSrc()) {
+<div
+	class="dropzone"
+	[class.dragging]="isDragging()"
+	(dragover)="onDragOver($event)"
+	(dragleave)="onDragLeave($event)"
+	(drop)="onDrop($event)"
+>
+	<div class="dropzone-content">
+		<h1>Track-The-Leader</h1>
+		<p>Drag and drop a video file (.mp4, .mov) to start</p>
+	</div>
+</div>
+} @else {
+<div class="viewer-container">
+	<div class="video-area">
+		<div class="video-wrapper">
+			<video
+				#videoPlayer
+				[src]="videoSrc()"
+				autoplay
+				controls
+				(loadedmetadata)="onVideoLoadedMetadata()"
+			></video>
+			<canvas #overlayCanvas></canvas>
+		</div>
+	</div>
+	<div class="sidebar">
+		<div class="sidebar-header">
+			<h2>Leaderboard</h2>
+		</div>
+		<div class="sidebar-content">
+			<ul class="leaderboard-list">
+				<li>Waiting for data...</li>
+			</ul>
+		</div>
+
+		<div class="sidebar-section">
+			<h3>Controls</h3>
+			<div class="controls-group">
+				<button disabled>Select Track Line</button>
+				<button disabled>Start Tracking</button>
+			</div>
+			<div class="toggles-group">
+				<label> <input type="checkbox" disabled /> Boxes </label>
+				<label> <input type="checkbox" disabled /> IDs </label>
+				<label> <input type="checkbox" disabled /> Track Line </label>
+			</div>
+		</div>
+	</div>
+</div>
+}

@@ -1,0 +1,166 @@
+:host {
+	display: block;
+	height: 100vh;
+	width: 100vw;
+	overflow: hidden;
+	background-color: #121212;
+	color: white;
+	font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.dropzone {
+	height: 100%;
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 2px dashed #444;
+	transition:
+		background-color 0.2s,
+		border-color 0.2s;
+}
+
+.dropzone.dragging {
+	background-color: rgba(255, 255, 255, 0.1);
+	border-color: #fff;
+}
+
+.dropzone-content {
+	text-align: center;
+}
+
+.viewer-container {
+	display: flex;
+	height: 100%;
+	width: 100%;
+}
+
+.video-area {
+	width: 75%;
+	height: 100%;
+	background-color: #000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+}
+
+.video-wrapper {
+	display: grid;
+	grid-template-areas: 'stack';
+	width: 100%;
+	height: 100%;
+	justify-content: center;
+	align-items: center;
+}
+
+video,
+canvas {
+	grid-area: stack;
+	max-width: 100%;
+	max-height: 100%;
+	display: block;
+}
+
+/* Ensure canvas is on top and doesn't block video controls if needed,
+   but usually we want to interact with canvas for drawing/selection later.
+   For now, pointer-events: none allows clicking video controls through canvas. */
+canvas {
+	pointer-events: none;
+}
+
+.sidebar {
+	width: 25%;
+	height: 100%;
+	background-color: rgba(30, 30, 30, 0.95);
+	border-left: 1px solid #444;
+	display: flex;
+	flex-direction: column;
+	padding: 1rem;
+	box-sizing: border-box;
+}
+
+.sidebar-header {
+	border-bottom: 1px solid #444;
+	margin-bottom: 1rem;
+	padding-bottom: 0.5rem;
+}
+
+.sidebar-header h2 {
+	margin: 0;
+	font-size: 1.2rem;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	color: #fff;
+}
+
+.sidebar-content {
+	flex: 1;
+	overflow-y: auto;
+}
+
+.leaderboard-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	color: #ccc;
+}
+
+.sidebar-section {
+	margin-top: auto;
+	padding-top: 1rem;
+	border-top: 1px solid #444;
+}
+
+.sidebar-section h3 {
+	margin-top: 0;
+	font-size: 1rem;
+	color: #aaa;
+	margin-bottom: 1rem;
+}
+
+.controls-group {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+}
+
+button {
+	background-color: #333;
+	color: white;
+	border: 1px solid #555;
+	padding: 0.75rem;
+	cursor: pointer;
+	text-transform: uppercase;
+	font-weight: bold;
+	font-size: 0.9rem;
+	transition: background-color 0.2s;
+}
+
+button:hover:not(:disabled) {
+	background-color: #444;
+}
+
+button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.toggles-group {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+label {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	cursor: pointer;
+	color: #ccc;
+}
+
+input[type='checkbox'] {
+	accent-color: #007bff;
+}
