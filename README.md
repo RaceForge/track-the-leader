@@ -1,6 +1,13 @@
 # TrackTheLeader
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.10.
+[Live Demo](https://track-the-leader.benhalverson.workers.dev)
+
+Track-The-Leader is a motorsport broadcast-style HUD application built with Angular 20. It allows users to analyze race footage with overlay controls and leaderboards.
+
+Currently in active development, the application features:
+- **Local Video Playback**: Drag and drop `.mp4` or `.mov` files to play them locally without uploading.
+- **Broadcast HUD**: A dedicated sidebar for leaderboards and tracking controls.
+- **Overlay System**: A canvas overlay aligned with the video for future computer vision visualizations.
 
 ## Development server
 
