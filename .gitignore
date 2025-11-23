@@ -49,5 +49,6 @@ Thumbs.db
 .env*
 !.env.example
 
-# ONNX models (large files)
+# ML models (large files)
 public/assets/*.onnx
+public/assets/*.tflite

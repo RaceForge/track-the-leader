@@ -10,35 +10,18 @@ Currently in active development, the application features:
 - **Overlay System**: A canvas overlay aligned with the video for computer vision visualizations.
 - **Track Line Mapping**: Interactive track definition with polyline drawing and start/finish selection.
 - **Camera Stabilization**: Homography-based motion compensation using OpenCV.js for track line stabilization.
-- **Object Detection**: Real-time RC car detection using YOLOv8n with ONNX Runtime Web (Milestone 3).
+- **RC Car Segmentation**: Interactive car marking using SAM3 (Segment Anything Model 3) with motion-based proposals (Milestone 3 - In Progress).
 
 ## Setup
 
 ### Prerequisites
 - Node.js 18+ and pnpm
-- YOLOv8n ONNX model for object detection (see [Model Setup](#object-detection-model-setup))
 
 ### Installation
 
 ```bash
 pnpm install
 ```
-
-### Object Detection Model Setup
-
-To enable object detection features, you need to download the YOLOv8n ONNX model:
-
-1. Install Ultralytics and export the model:
-```bash
-pip install ultralytics
-yolo export model=yolov8n.pt format=onnx
-```
-
-2. Copy the generated `yolov8n.onnx` file to `public/assets/`
-
-For detailed instructions, see [public/assets/MODEL_SETUP.md](public/assets/MODEL_SETUP.md)
-
-**Note:** The model file is ~6-8 MB and not included in the repository. Detection features will be disabled until the model is added.
 
 ## Development server
 
@@ -107,15 +90,20 @@ Drag and drop an `.mp4` or `.mov` file onto the application.
 ### 3. Enable Stabilization (Milestone 2.5)
 Toggle **"Stabilized Track Line"** to see the track line compensate for camera movement using homography transformations.
 
-### 4. Enable Object Detection (Milestone 3)
-Toggle **"Detection Boxes"** to see real-time RC car detection with bounding boxes and confidence scores.
+### 4. Mark RC Cars (Milestone 3 - In Progress)
+After defining the track line:
+1. Click **"Mark Cars"** button to enter car marking mode
+2. Video pauses and shows motion-based proposal boxes
+3. Click on proposals to select which ones are RC cars
+4. Click **"Confirm Cars"** to run SAM3 segmentation
+5. System generates pixel-accurate masks and centroids for each car
 
 **Features:**
-- Real-time detection at video frame rate
-- Non-Maximum Suppression to remove duplicates
-- Class filtering for vehicles only (car, truck, motorcycle, bicycle, bus)
-- Bounding boxes with labels and confidence percentages
-- Center point extraction for future tracking
+- Motion-based proposal generation using frame differencing
+- Interactive car selection
+- SAM3 (Segment Anything Model 3) segmentation with WebGPU
+- Pixel-accurate masks and center points
+- Car seeds stored for future tracking milestones
 
 ## Features by Milestone
 
@@ -137,19 +125,20 @@ Toggle **"Detection Boxes"** to see real-time RC car detection with bounding box
 - Homography computation with RANSAC
 - Track line transformation to maintain alignment
 
-### Milestone 3: Object Detection
-- ONNX Runtime Web integration
-- YOLOv8n model inference in browser
-- Frame preprocessing (resize, normalize, letterbox)
-- Postprocessing pipeline (NMS, class filtering)
-- Real-time detection visualization
-- Per-frame detection caching
+### Milestone 3: RC Car Segmentation (In Progress)
+- SAM3 model integration with WebGPU
+- Motion-based proposal generation (frame differencing)
+- Interactive "Mark Cars" UI flow
+- Pixel-accurate segmentation masks
+- Car seed initialization for tracking
+- Hybrid proposal approach (automatic + user confirmation)
 
 ## Architecture
 
 ### Services
 - **HomographyService**: Camera motion stabilization using OpenCV.js
-- **DetectionService**: Object detection using ONNX Runtime Web
+- **Sam3SegmentationService**: Interactive segmentation using SAM3 (In Progress)
+- **ProposalGeneratorService**: Motion-based car detection proposals (In Progress)
 
 ### Components
 - **RaceViewer**: Main video player with overlay canvas and sidebar controls
@@ -157,7 +146,7 @@ Toggle **"Detection Boxes"** to see real-time RC car detection with bounding box
 ### Technologies
 - Angular 20 with standalone components and signals
 - OpenCV.js (WASM) for computer vision
-- ONNX Runtime Web (WASM) for ML inference
+- SAM3 with WebGPU for segmentation
 - Cloudflare Pages for deployment
 
 ## Additional Resources

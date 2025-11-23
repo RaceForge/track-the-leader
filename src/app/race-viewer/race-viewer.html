@@ -78,15 +78,7 @@
 				<button (click)="onStartTracking()" [disabled]="!canStartTracking()">Start Tracking</button>
 			</div>
 			<div class="toggles-group">
-				<label>
-					<input
-						type="checkbox"
-						[checked]="detectionService.showDetections()"
-						(change)="onToggleDetections($event)"
-						[disabled]="!detectionService.modelReady()"
-					/>
-					Detection Boxes
-				</label>
+				<label> <input type="checkbox" disabled /> Boxes </label>
 				<label> <input type="checkbox" disabled /> IDs </label>
 				<label>
 					<input

@@ -1,190 +1,192 @@
-# Milestone 3 — Object Detection Per Frame
+# Milestone 3 — RC Car Detection via SAM3 (Hybrid Proposals)
 track-the-leader
 
-## Objective
+> This replaces the previous YOLO-based Milestone 3 doc.  
+> Goal: use **SAM3** in the browser (WebGPU) to segment RC cars, using a **hybrid proposal** approach:
+>  - automatic motion-based proposals
+>  - user confirmation of which blobs are cars
+>  - SAM3 segmentation for pixel-accurate masks + centroids
 
-Detect RC cars efficiently in browser using a pre-trained object detection model. This milestone adds real-time detection capabilities to track RC cars frame-by-frame during video playback, providing bounding boxes and center coordinates for future leader tracking logic.
+No tracking, no leader logic yet. This milestone is about:
+1. Getting SAM3 running in the browser.
+2. Building a **"Mark Cars"** UI flow.
+3. Producing high-quality car masks + centroids on a single frame.
 
 ---
 
-## Key Concepts
+## Objective
 
-- **Frame Preprocessing**: Convert video frames to model input tensors
-- **Async Inference**: Run detection model per frame without blocking UI
-- **Postprocessing**: Apply Non-Maximum Suppression (NMS) and filter for RC car detections
-- **Debug Visualization**: Toggle overlay of detection bounding boxes
+Implement an interactive **Car Initialization** step:
+
+1. User enters **Mark Cars** mode (after track line is defined).
+2. App generates **candidate blobs** from motion/foreground.
+3. User confirms which blobs are RC cars.
+4. For each confirmed car:
+   - Run SAM3 segmentation.
+   - Compute and store centroid + mask + bounding box.
+   - Seed that car with a unique ID for use in later tracking milestones.
 
 ---
 
 ## Requirements
 
-### 1. Frame Preprocessing
+### 1. SAM3 Model Integration (WebGPU)
 
-- Extract video frame as ImageData from video element
-- Resize and normalize frame to match model input requirements (e.g., 640x640 for YOLO models)
-- Convert to model-compatible tensor format
-- Handle aspect ratio and letterboxing if needed
+- Load a **SAM3** model (ONNX / LiteRT format) in browser with WebGPU backend.
+- Create a `Sam3SegmentationService` (or similar) that:
+  - Initializes the model once.
+  - Exposes a method like:
 
-Implementation notes:
-- Use OffscreenCanvas or temporary canvas for preprocessing
-- Maintain performance with efficient image resizing
-- Preprocess on CPU is acceptable for this milestone
+    ```ts
+    type SamPrompt = {
+      point: { x: number; y: number };
+      box?: [number, number, number, number]; // optional
+    };
 
-### 2. Object Detection Model Integration
+    type SamMaskResult = {
+      mask: ImageData | Uint8ClampedArray; // binary or soft mask
+      bbox: [number, number, number, number]; // in video coordinates
+      centroid: { x: number; y: number };
+    };
 
-For this milestone, we'll use a lightweight browser-compatible model:
-- **ONNX Runtime Web** with a pre-trained YOLO model, OR
-- **TensorFlow.js** with a pre-trained model
+    runSegmentation(
+      frame: HTMLCanvasElement | ImageData,
+      prompt: SamPrompt
+    ): Promise<SamMaskResult>;
+    ```
 
-Model requirements:
-- Runs efficiently in browser (WebAssembly or WebGL backend)
-- Detects objects including vehicles/cars
-- Outputs bounding boxes with class labels and confidence scores
+- Use **WebGPU** execution provider (or LiteRT.js WebGPU backend).
+- Provide `isLoaded()` or similar readiness state to the Race Viewer.
 
-### 3. Async Inference Per Frame
+### 2. Motion-Based Proposal Generation (Hybrid C)
 
-- Run inference asynchronously to avoid blocking the render loop
-- Queue frames if inference is slower than video framerate
-- Skip frames if necessary to maintain real-time performance
-- Store detection results with frame index for tracking
+- Implement a **proposal generator** that finds likely moving blobs (cars) on a selected key frame:
 
-Data structures:
+  - Use simple CV:
+    - Frame differencing against a background snapshot (early frame).
+    - Or a running average background model.
+  - Threshold + morphological operations to get binary regions.
+  - Extract connected components / contours.
+  - Compute bounding boxes for each region.
+
+- Filter out noise:
+  - Minimum/maximum area thresholds (too small or too large).
+  - Optionally restrict to regions near the user-defined track polyline.
+
+- Expose candidate proposals to the Race Viewer as:
+
+  ```ts
+  type Proposal = {
+    id: number;
+    bbox: [number, number, number, number];
+    centroid: { x: number; y: number };
+  };
+
+  let proposals: Proposal[];
+  ```
+
+### 3. "Mark Cars" UI Flow
+
+Add a **"Mark Cars"** button to the sidebar, enabled when:
+- Track line is defined and confirmed.
+- A valid video is loaded.
+
+**Flow:**
+
+1. User clicks **Mark Cars**:
+   - Video pauses.
+   - The current frame is used for proposals.
+   - Proposals are drawn as translucent rectangles over the video.
+
+2. User interaction:
+   - User can click a proposal to mark it as a car.
+   - Clicking toggles selection (selected vs not selected).
+   - Provide a simple list in the sidebar:
+     - "Selected cars: N"
+   - Also allow manual click on empty area:
+     - Converts that click into a `SamPrompt` with a point-only proposal.
+
+3. Controls:
+   - Button: **Confirm Cars**
+     - Enabled when ≥ 1 proposal is selected.
+   - Button: **Cancel**
+     - Discards proposals, exits Mark Cars mode.
+
+### 4. Running SAM3 on Confirmed Cars
+
+When user clicks **Confirm Cars**:
+
+For each selected proposal:
+1. Build a `SamPrompt`:
+   - `point`: proposal centroid or user click.
+   - `box`: proposal bounding box (optional, improves segmentation).
+
+2. Call `Sam3SegmentationService.runSegmentation(...)` with:
+   - The paused key frame.
+   - The prompt.
+
+3. Get back `SamMaskResult`:
+   - Mask, bbox, centroid.
+
+4. Assign a new car ID:
+
 ```ts
-type BoundingBox = {
-  x: number;      // Top-left x coordinate
-  y: number;      // Top-left y coordinate
-  width: number;  // Box width
-  height: number; // Box height
+type CarSeed = {
+  id: number;
+  centroid: { x: number; y: number };    // in video coordinates
+  bbox: [number, number, number, number];
+  mask: SamMaskResult["mask"];
 };
 
-type Detection = {
-  box: BoundingBox;
-  className: string;
-  confidence: number;
-  center: Point2D;  // Computed center coordinate
-};
-
-type FrameDetections = {
-  frameIndex: number;
-  detections: Detection[];
-};
+let carSeeds: CarSeed[];
 ```
 
-### 4. Postprocessing Pipeline
+5. Store `carSeeds` in state for later milestones:
+   - These become the initial tracks / prompts for temporal tracking with SAM3.
 
-Implement the following postprocessing steps:
+### 5. Visual Display
 
-#### Non-Maximum Suppression (NMS)
-- Remove duplicate/overlapping detections
-- Use IoU (Intersection over Union) threshold (e.g., 0.45)
-- Keep detection with highest confidence in overlapping region
+**During Mark Cars mode:**
+- Draw proposals as boxes (e.g. yellow).
+- Selected proposals as highlighted (e.g. green).
 
-#### Class Filtering
-- Filter detections to only include "rc car", "car", "truck", or similar vehicle classes
-- Use configurable class filter list
-- Map model class names to application-specific names
+**After SAM3 segmentation:**
+- Optionally overlay SAM masks with low alpha (debug toggle).
 
-#### Center Coordinate Extraction
-- Compute center point: `{ x: box.x + box.width/2, y: box.y + box.height/2 }`
-- Store center coordinates for future leader tracking logic
-
-### 5. Detection Service
-
-Create a dedicated service for object detection:
-
-```ts
-@Injectable({ providedIn: 'root' })
-export class DetectionService {
-  // Model state
-  private model: any | null = null;
-  modelReady = signal<boolean>(false);
-  
-  // Detection results cache
-  private detectionCache = new Map<number, Detection[]>();
-  
-  // Configuration
-  confidenceThreshold = signal<number>(0.5);
-  nmsThreshold = signal<number>(0.45);
-  targetClasses = signal<string[]>(['car', 'truck']);
-  
-  // Debug state
-  showDetections = signal<boolean>(false);
-  
-  // Methods
-  async loadModel(): Promise<void>;
-  async detectObjects(imageData: ImageData, frameIndex: number): Promise<Detection[]>;
-  getDetections(frameIndex: number): Detection[] | null;
-  clear(): void;
-}
-```
-
-### 6. Debug Visualization
-
-Add a debug mode toggle in the sidebar that:
-- Draws detection bounding boxes on overlay canvas
-- Labels each box with class name and confidence score
-- Draws center point as a small circle
-- Uses distinct colors for different classes
-
-Requirements:
-- When enabled: Render boxes each frame synchronized with video playback
-- When disabled: Suppress detection overlay (but continue running inference)
-- Performance: Rendering should not significantly impact playback
-
-### 7. Integration with Race Viewer
-
-Extend the race viewer component to:
-- Initialize detection service on video load
-- Run detection async on each frame during playback
-- Render detection overlays when debug mode is enabled
-- Store detection results for future leader tracking
+**After Confirm:**
+- Exit Mark Cars mode.
+- Hide proposals unless debug mode is enabled.
 
 ---
 
-## State & Integration
+## Integration with Existing State
 
-- Add detection service alongside existing homography service
-- Hook into the same render loop that currently draws track line
-- Maintain frame synchronization between video, homography, and detection
-- Store detection state in service, expose via signals for UI
+- Only allow **Mark Cars** after track is locked (Milestone 2 complete).
+- Store:
+  - `proposals: Proposal[]`
+  - `selectedProposalIds: number[]`
+  - `carSeeds: CarSeed[]`
+- Wire these into the Race Viewer state/signals.
+- These seeds will be used in later milestones (tracking and leader logic).
 
 ---
 
 ## Deliverables
 
-1. Detection service with model loading and inference
-2. Frame preprocessing pipeline
-3. Postprocessing with NMS and class filtering
-4. Debug visualization toggle in sidebar
-5. Detection results cached per frame for future use
+1. SAM3 model loaded and callable from Angular.
+2. Motion-based proposal generator creating candidate blobs.
+3. **"Mark Cars"** UI flow:
+   - User can select which proposals correspond to cars.
+   - System runs SAM3 on selected ones.
+4. Produces stable `carSeeds` (masks + centroids) for each car.
 
 ---
 
 ## Definition of Done
 
-When the feature is complete:
-
-- User can toggle "Show Detections" in sidebar
-- Detection boxes appear on video overlay in real-time during playback
-- Only RC cars/vehicles are detected (other objects filtered out)
-- Box labels show class name and confidence
-- Performance is acceptable for 10-second clips (no major stuttering)
-- No blocking errors in console
-- Detection results are stored per frame for future leader tracking logic
-
----
-
-## Performance Targets
-
-- Inference latency: < 100ms per frame (on typical desktop)
-- Video playback remains smooth (no dropped frames)
-- Memory usage stays reasonable (< 500MB for 10-second clip)
-
----
-
-## Future Work (Not in this milestone)
-
-- Leader identification and tracking across frames
-- Position calculation along track line
-- Leaderboard updates
-- Race lap counting
+- Clicking **Mark Cars** pauses video and shows proposal boxes.
+- User can select/deselect proposals.
+- Confirming runs SAM3 and outputs car seeds with reasonable masks for each car.
+- Visual feedback makes it clear which cars were accepted.
+- Performance is acceptable for a single key frame segmentation step (MVP).
+- **No tracking, no per-frame inference yet** — this comes in the next milestone.
