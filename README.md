@@ -10,7 +10,7 @@ Currently in active development, the application features:
 - **Overlay System**: A canvas overlay aligned with the video for computer vision visualizations.
 - **Track Line Mapping**: Interactive track definition with polyline drawing and start/finish selection.
 - **Camera Stabilization**: Homography-based motion compensation using OpenCV.js for track line stabilization.
-- **RC Car Segmentation**: Interactive car marking using SAM3 (Segment Anything Model 3) with motion-based proposals (Milestone 3 - In Progress).
+- **RC Car Segmentation**: Interactive car marking using SAM3 (Segment Anything Model 3) with motion-based proposals (Milestone 3 - Core services implemented).
 
 ## Setup
 
@@ -126,19 +126,21 @@ After defining the track line:
 - Track line transformation to maintain alignment
 
 ### Milestone 3: RC Car Segmentation (In Progress)
-- SAM3 model integration with WebGPU
-- Motion-based proposal generation (frame differencing)
-- Interactive "Mark Cars" UI flow
-- Pixel-accurate segmentation masks
-- Car seed initialization for tracking
-- Hybrid proposal approach (automatic + user confirmation)
+- ✅ Motion-based proposal generation (ProposalGeneratorService)
+- ✅ SAM3 segmentation service structure (Sam3SegmentationService)
+- ⏳ SAM3 model integration with WebGPU
+- ⏳ Interactive "Mark Cars" UI flow
+- ⏳ Pixel-accurate segmentation masks
+- ⏳ Car seed initialization for tracking
+
+**Status:** Core services implemented, ready for model integration and UI development.
 
 ## Architecture
 
 ### Services
-- **HomographyService**: Camera motion stabilization using OpenCV.js
-- **Sam3SegmentationService**: Interactive segmentation using SAM3 (In Progress)
-- **ProposalGeneratorService**: Motion-based car detection proposals (In Progress)
+- **HomographyService**: Camera motion stabilization using OpenCV.js ✅
+- **ProposalGeneratorService**: Motion-based car detection using frame differencing ✅
+- **Sam3SegmentationService**: Interactive segmentation with SAM3 (placeholder ready for model) ⏳
 
 ### Components
 - **RaceViewer**: Main video player with overlay canvas and sidebar controls
