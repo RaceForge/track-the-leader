@@ -157,9 +157,20 @@ export class DetectionService {
 		'toothbrush',
 	];
 
+	/** Reusable canvas for frame preprocessing */
+	private preprocessCanvas: OffscreenCanvas | null = null;
+	private preprocessSourceCanvas: OffscreenCanvas | null = null;
+
+	/** Maximum cache size to prevent memory issues */
+	private readonly MAX_CACHE_SIZE = 300; // ~10 seconds at 30 fps
+
+	/** Configurable paths */
+	readonly wasmPath = '/assets/onnx-wasm/';
+	readonly defaultModelPath = '/assets/yolov8n.onnx';
+
 	constructor() {
 		// Configure ONNX Runtime to use WebAssembly backend
-		ort.env.wasm.wasmPaths = '/assets/onnx-wasm/';
+		ort.env.wasm.wasmPaths = this.wasmPath;
 	}
 
 	/**
@@ -173,9 +184,10 @@ export class DetectionService {
 	 * - Input: [1, 3, 640, 640] - RGB image normalized to [0, 1]
 	 * - Output: [1, 84, 8400] - Detections in YOLO format
 	 *
-	 * @param modelPath - Path to ONNX model file (default: /assets/yolov8n.onnx)
+	 * @param modelPath - Path to ONNX model file (default: configured defaultModelPath)
 	 */
-	async loadModel(modelPath = '/assets/yolov8n.onnx'): Promise<void> {
+	async loadModel(modelPath?: string): Promise<void> {
+		const pathToUse = modelPath || this.defaultModelPath;
 		if (this.modelLoading()) {
 			console.warn('Model is already loading');
 			return;
@@ -190,10 +202,10 @@ export class DetectionService {
 		this.modelError.set(null);
 
 		try {
-			console.log('Loading YOLO model from:', modelPath);
+			console.log('Loading YOLO model from:', pathToUse);
 
 			// Create inference session with WebAssembly backend
-			this.session = await ort.InferenceSession.create(modelPath, {
+			this.session = await ort.InferenceSession.create(pathToUse, {
 				executionProviders: ['wasm'],
 			});
 
@@ -245,12 +257,14 @@ export class DetectionService {
 		const offsetX = Math.floor((this.MODEL_INPUT_SIZE - scaledWidth) / 2);
 		const offsetY = Math.floor((this.MODEL_INPUT_SIZE - scaledHeight) / 2);
 
-		// Create temporary canvas for resizing
-		const canvas = new OffscreenCanvas(
-			this.MODEL_INPUT_SIZE,
-			this.MODEL_INPUT_SIZE,
-		);
-		const ctx = canvas.getContext('2d');
+		// Reuse or create preprocessing canvas
+		if (!this.preprocessCanvas) {
+			this.preprocessCanvas = new OffscreenCanvas(
+				this.MODEL_INPUT_SIZE,
+				this.MODEL_INPUT_SIZE,
+			);
+		}
+		const ctx = this.preprocessCanvas.getContext('2d');
 		if (!ctx) {
 			throw new Error('Failed to get canvas context');
 		}
@@ -259,16 +273,22 @@ export class DetectionService {
 		ctx.fillStyle = '#808080';
 		ctx.fillRect(0, 0, this.MODEL_INPUT_SIZE, this.MODEL_INPUT_SIZE);
 
-		// Draw resized image centered
-		const sourceCanvas = new OffscreenCanvas(width, height);
-		const sourceCtx = sourceCanvas.getContext('2d');
+		// Reuse or create source canvas (resize if dimensions changed)
+		if (
+			!this.preprocessSourceCanvas ||
+			this.preprocessSourceCanvas.width !== width ||
+			this.preprocessSourceCanvas.height !== height
+		) {
+			this.preprocessSourceCanvas = new OffscreenCanvas(width, height);
+		}
+		const sourceCtx = this.preprocessSourceCanvas.getContext('2d');
 		if (!sourceCtx) {
 			throw new Error('Failed to get source canvas context');
 		}
 		sourceCtx.putImageData(imageData, 0, 0);
 
 		ctx.drawImage(
-			sourceCanvas,
+			this.preprocessSourceCanvas,
 			0,
 			0,
 			width,
@@ -550,8 +570,9 @@ export class DetectionService {
 				imageData.height,
 			);
 
-			// Cache results
+			// Cache results with size limit
 			this.detectionCache.set(frameIndex, detections);
+			this.evictOldCacheEntries();
 
 			return detections;
 		} catch (error) {
@@ -568,6 +589,29 @@ export class DetectionService {
 	 */
 	getDetections(frameIndex: number): Detection[] | null {
 		return this.detectionCache.get(frameIndex) || null;
+	}
+
+	/**
+	 * Evict oldest cache entries if cache exceeds maximum size.
+	 *
+	 * Uses a simple FIFO eviction strategy to prevent unbounded memory growth.
+	 * Keeps the most recent MAX_CACHE_SIZE frames.
+	 */
+	private evictOldCacheEntries(): void {
+		if (this.detectionCache.size <= this.MAX_CACHE_SIZE) {
+			return;
+		}
+
+		// Get all frame indices and sort them
+		const frameIndices = Array.from(this.detectionCache.keys()).sort(
+			(a, b) => a - b,
+		);
+
+		// Remove oldest entries until we're under the limit
+		const numToRemove = this.detectionCache.size - this.MAX_CACHE_SIZE;
+		for (let i = 0; i < numToRemove; i++) {
+			this.detectionCache.delete(frameIndices[i]);
+		}
 	}
 
 	/**
