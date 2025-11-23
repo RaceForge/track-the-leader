@@ -156,11 +156,11 @@ export class HomographyService {
 				gray,
 				new cv.Mat(),
 				this.referenceKeypoints,
-				this.referenceDescriptors
+				this.referenceDescriptors,
 			);
 
 			console.log(
-				`Reference frame set to index ${frameIndex}, features: ${this.referenceKeypoints?.size?.() || 0}`
+				`Reference frame set to index ${frameIndex}, features: ${this.referenceKeypoints?.size?.() || 0}`,
 			);
 
 			// Cleanup
@@ -179,7 +179,7 @@ export class HomographyService {
 		return [
 			[1, 0, 0],
 			[0, 1, 0],
-			[0, 0, 1]
+			[0, 0, 1],
 		];
 	}
 
@@ -243,7 +243,7 @@ export class HomographyService {
 				currentGray,
 				new cv.Mat(),
 				currentKeypoints,
-				currentDescriptors
+				currentDescriptors,
 			);
 
 			if (currentDescriptors.empty() || currentKeypoints.size() < 4) {
@@ -271,14 +271,16 @@ export class HomographyService {
 			}
 
 			if (goodMatches.length < 4) {
-				console.warn(`Only ${goodMatches.length} good matches, need at least 4`);
+				console.warn(
+					`Only ${goodMatches.length} good matches, need at least 4`,
+				);
 				this.cleanup([
 					currentMat,
 					currentGray,
 					currentDescriptors,
 					matches,
 					orb,
-					bf
+					bf,
 				]);
 				currentKeypoints.delete();
 				return this.getLastValidHomography(frameIndex);
@@ -288,25 +290,25 @@ export class HomographyService {
 			const srcPoints: number[] = [];
 			const dstPoints: number[] = [];
 
-		for (const match of goodMatches) {
-			const currentKp = currentKeypoints.get(match.queryIdx);
-			const refKp = this.referenceKeypoints?.get?.(match.trainIdx);
-			if (currentKp?.pt && refKp?.pt) {
-				srcPoints.push(currentKp.pt.x, currentKp.pt.y);
-				dstPoints.push(refKp.pt.x, refKp.pt.y);
-			}
-		}			// Create OpenCV point matrices
+			for (const match of goodMatches) {
+				const currentKp = currentKeypoints.get(match.queryIdx);
+				const refKp = this.referenceKeypoints?.get?.(match.trainIdx);
+				if (currentKp?.pt && refKp?.pt) {
+					srcPoints.push(currentKp.pt.x, currentKp.pt.y);
+					dstPoints.push(refKp.pt.x, refKp.pt.y);
+				}
+			} // Create OpenCV point matrices
 			const srcMat = cv.matFromArray(
 				goodMatches.length,
 				1,
 				cv.CV_32FC2,
-				srcPoints
+				srcPoints,
 			);
 			const dstMat = cv.matFromArray(
 				goodMatches.length,
 				1,
 				cv.CV_32FC2,
-				dstPoints
+				dstPoints,
 			);
 
 			// Compute homography with RANSAC
@@ -323,7 +325,7 @@ export class HomographyService {
 					dstMat,
 					H,
 					orb,
-					bf
+					bf,
 				]);
 				currentKeypoints.delete();
 				return this.getLastValidHomography(frameIndex);
@@ -333,7 +335,7 @@ export class HomographyService {
 			const homography: Homography = [
 				[H.doubleAt(0, 0), H.doubleAt(0, 1), H.doubleAt(0, 2)],
 				[H.doubleAt(1, 0), H.doubleAt(1, 1), H.doubleAt(1, 2)],
-				[H.doubleAt(2, 0), H.doubleAt(2, 1), H.doubleAt(2, 2)]
+				[H.doubleAt(2, 0), H.doubleAt(2, 1), H.doubleAt(2, 2)],
 			];
 
 			// Store homography
@@ -349,7 +351,7 @@ export class HomographyService {
 				dstMat,
 				H,
 				orb,
-				bf
+				bf,
 			]);
 			currentKeypoints.delete();
 
@@ -441,7 +443,7 @@ export class HomographyService {
 		const Hinv = this.invertHomography(H);
 		if (!Hinv) return trackLine;
 
-		return trackLine.map(point => this.applyHomography(point, Hinv));
+		return trackLine.map((point) => this.applyHomography(point, Hinv));
 	}
 
 	/**
@@ -501,18 +503,18 @@ export class HomographyService {
 			[
 				invDet * (H[1][1] * H[2][2] - H[1][2] * H[2][1]),
 				invDet * (H[0][2] * H[2][1] - H[0][1] * H[2][2]),
-				invDet * (H[0][1] * H[1][2] - H[0][2] * H[1][1])
+				invDet * (H[0][1] * H[1][2] - H[0][2] * H[1][1]),
 			],
 			[
 				invDet * (H[1][2] * H[2][0] - H[1][0] * H[2][2]),
 				invDet * (H[0][0] * H[2][2] - H[0][2] * H[2][0]),
-				invDet * (H[0][2] * H[1][0] - H[0][0] * H[1][2])
+				invDet * (H[0][2] * H[1][0] - H[0][0] * H[1][2]),
 			],
 			[
 				invDet * (H[1][0] * H[2][1] - H[1][1] * H[2][0]),
 				invDet * (H[0][1] * H[2][0] - H[0][0] * H[2][1]),
-				invDet * (H[0][0] * H[1][1] - H[0][1] * H[1][0])
-			]
+				invDet * (H[0][0] * H[1][1] - H[0][1] * H[1][0]),
+			],
 		];
 	}
 

@@ -1,13 +1,13 @@
 import {
-	Component,
-	ElementRef,
-	ViewChild,
-	signal,
-	effect,
-	computed,
-	OnDestroy,
 	ChangeDetectionStrategy,
+	Component,
+	computed,
+	ElementRef,
+	effect,
 	inject,
+	OnDestroy,
+	signal,
+	ViewChild,
 } from '@angular/core';
 import { HomographyService } from '../services/homography.service';
 
@@ -39,7 +39,9 @@ export class RaceViewer implements OnDestroy {
 
 	// Computed state for UI controls
 	canFinishMapping = computed(() => this.trackLine().length > 4);
-	canStartTracking = computed(() => this.mode() === 'locked' && this.startIndex() !== null);
+	canStartTracking = computed(
+		() => this.mode() === 'locked' && this.startIndex() !== null,
+	);
 	isMapping = computed(() => this.mode() === 'mapping');
 	isSelectingStartFinish = computed(() => this.mode() === 'start-finish');
 
@@ -194,7 +196,7 @@ export class RaceViewer implements OnDestroy {
 
 		if (this.mode() === 'mapping') {
 			// Add point to trackLine
-			this.trackLine.update(line => [...line, { x, y }]);
+			this.trackLine.update((line) => [...line, { x, y }]);
 		} else if (this.mode() === 'start-finish') {
 			// Find nearest point on polyline
 			const nearestIndex = this.findNearestPointIndex({ x, y });
@@ -353,7 +355,10 @@ export class RaceViewer implements OnDestroy {
 
 		// Transform track line to current frame
 		const frameIndex = this.homographyService.currentFrameIndex();
-		const transformedLine = this.homographyService.transformTrackLine(line, frameIndex);
+		const transformedLine = this.homographyService.transformTrackLine(
+			line,
+			frameIndex,
+		);
 
 		// Draw transformed polyline
 		ctx.strokeStyle = '#00ffff'; // Cyan

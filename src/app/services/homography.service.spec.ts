@@ -27,7 +27,7 @@ describe('HomographyService', () => {
 		expect(H).toEqual([
 			[1, 0, 0],
 			[0, 1, 0],
-			[0, 0, 1]
+			[0, 0, 1],
 		]);
 	});
 
@@ -51,7 +51,7 @@ describe('HomographyService', () => {
 		const trackLine = [
 			{ x: 10, y: 10 },
 			{ x: 20, y: 20 },
-			{ x: 30, y: 30 }
+			{ x: 30, y: 30 },
 		];
 		const canvas = document.createElement('canvas');
 		canvas.width = 100;
