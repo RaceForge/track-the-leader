@@ -62,11 +62,20 @@ canvas {
 	display: block;
 }
 
-/* Ensure canvas is on top and doesn't block video controls if needed,
-   but usually we want to interact with canvas for drawing/selection later.
-   For now, pointer-events: none allows clicking video controls through canvas. */
+video {
+	z-index: 1;
+}
+
+/* Canvas pointer events: none by default, enabled when interactive */
 canvas {
 	pointer-events: none;
+	z-index: 2;
+}
+
+canvas.interactive {
+	pointer-events: auto;
+	cursor: crosshair;
+	z-index: 10;
 }
 
 .sidebar {
@@ -163,4 +172,44 @@ label {
 
 input[type='checkbox'] {
 	accent-color: #007bff;
+}
+
+/* Milestone 2: Mapping mode styles */
+.video-area.mapping,
+.video-area.selecting {
+	outline: 2px solid #00ffff;
+}
+
+.mode-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	padding: 1rem;
+	background: rgba(0, 0, 0, 0.8);
+	border-bottom: 2px solid #00ffff;
+	z-index: 10;
+}
+
+.mode-message {
+	text-align: center;
+	color: #00ffff;
+	font-weight: bold;
+	font-size: 1.1rem;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+}
+
+.status-text {
+	padding: 0.5rem;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 4px;
+	text-align: center;
+	color: #ccc;
+	font-size: 0.9rem;
+}
+
+.status-text.success {
+	background: rgba(0, 255, 0, 0.2);
+	color: #0f0;
 }
