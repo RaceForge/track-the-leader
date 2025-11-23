@@ -1,13 +1,15 @@
 import {
-	Component,
-	ElementRef,
-	ViewChild,
-	signal,
-	effect,
-	computed,
-	OnDestroy,
 	ChangeDetectionStrategy,
+	Component,
+	computed,
+	ElementRef,
+	effect,
+	inject,
+	OnDestroy,
+	signal,
+	ViewChild,
 } from '@angular/core';
+import { HomographyService } from '../services/homography.service';
 
 type Point2D = { x: number; y: number };
 
@@ -24,6 +26,9 @@ export class RaceViewer implements OnDestroy {
 	@ViewChild('videoPlayer') videoPlayer!: ElementRef<HTMLVideoElement>;
 	@ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
 
+	homographyService = inject(HomographyService);
+	private animationFrameId: number | null = null;
+
 	videoSrc = signal<string | null>(null);
 	isDragging = signal(false);
 
@@ -34,7 +39,9 @@ export class RaceViewer implements OnDestroy {
 
 	// Computed state for UI controls
 	canFinishMapping = computed(() => this.trackLine().length > 4);
-	canStartTracking = computed(() => this.mode() === 'locked' && this.startIndex() !== null);
+	canStartTracking = computed(
+		() => this.mode() === 'locked' && this.startIndex() !== null,
+	);
 	isMapping = computed(() => this.mode() === 'mapping');
 	isSelectingStartFinish = computed(() => this.mode() === 'start-finish');
 
@@ -52,6 +59,19 @@ export class RaceViewer implements OnDestroy {
 			this.startIndex();
 			if (this.overlayCanvas) {
 				this.renderPolyline();
+			}
+		});
+
+		// Re-render when debug mode changes
+		effect(() => {
+			const debugMode = this.homographyService.debugMode();
+			if (debugMode && this.overlayCanvas) {
+				this.startRenderLoop();
+			} else {
+				this.stopRenderLoop();
+				if (this.overlayCanvas) {
+					this.renderPolyline();
+				}
 			}
 		});
 	}
@@ -142,6 +162,14 @@ export class RaceViewer implements OnDestroy {
 
 	onConfirmStartFinish() {
 		if (this.startIndex() !== null) {
+			// Capture reference frame for homography
+			const imageData = this.captureFrameData();
+			if (imageData) {
+				const frameIndex = 0; // Use frame 0 as reference
+				this.homographyService.setReferenceFrame(frameIndex, imageData);
+				this.homographyService.computeHomography(frameIndex, imageData);
+			}
+
 			this.mode.set('locked');
 			this.playVideo();
 		}
@@ -168,7 +196,7 @@ export class RaceViewer implements OnDestroy {
 
 		if (this.mode() === 'mapping') {
 			// Add point to trackLine
-			this.trackLine.update(line => [...line, { x, y }]);
+			this.trackLine.update((line) => [...line, { x, y }]);
 		} else if (this.mode() === 'start-finish') {
 			// Find nearest point on polyline
 			const nearestIndex = this.findNearestPointIndex({ x, y });
@@ -252,7 +280,112 @@ export class RaceViewer implements OnDestroy {
 		}
 	}
 
+	// Milestone 2.5: Homography and debug visualization
+	onToggleDebugMode(event: Event): void {
+		const checked = (event.target as HTMLInputElement).checked;
+		this.homographyService.debugMode.set(checked);
+	}
+
+	private startRenderLoop(): void {
+		if (this.animationFrameId !== null) return;
+
+		const render = () => {
+			this.updateFrameAndRender();
+			this.animationFrameId = requestAnimationFrame(render);
+		};
+
+		this.animationFrameId = requestAnimationFrame(render);
+	}
+
+	private stopRenderLoop(): void {
+		if (this.animationFrameId !== null) {
+			cancelAnimationFrame(this.animationFrameId);
+			this.animationFrameId = null;
+		}
+	}
+
+	private updateFrameAndRender(): void {
+		if (!this.videoPlayer || !this.overlayCanvas) return;
+
+		const video = this.videoPlayer.nativeElement;
+		if (video.paused || video.ended) return;
+
+		// Estimate current frame index
+		const fps = 30; // Assume 30 fps for now
+		const frameIndex = Math.floor(video.currentTime * fps);
+		this.homographyService.currentFrameIndex.set(frameIndex);
+
+		// Capture current frame for homography computation
+		const imageData = this.captureFrameData();
+		if (imageData) {
+			this.homographyService.computeHomography(frameIndex, imageData);
+		}
+
+		// Render transformed track line
+		this.renderStabilizedTrackLine();
+	}
+
+	private captureFrameData(): ImageData | null {
+		if (!this.videoPlayer || !this.overlayCanvas) return null;
+
+		const video = this.videoPlayer.nativeElement;
+		const canvas = this.overlayCanvas.nativeElement;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return null;
+
+		// Draw video frame to canvas temporarily
+		ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+		return imageData;
+	}
+
+	private renderStabilizedTrackLine(): void {
+		if (!this.overlayCanvas) return;
+
+		const canvas = this.overlayCanvas.nativeElement;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+
+		// Clear canvas
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+		const line = this.trackLine();
+		if (line.length < 2) return;
+
+		// Transform track line to current frame
+		const frameIndex = this.homographyService.currentFrameIndex();
+		const transformedLine = this.homographyService.transformTrackLine(
+			line,
+			frameIndex,
+		);
+
+		// Draw transformed polyline
+		ctx.strokeStyle = '#00ffff'; // Cyan
+		ctx.lineWidth = 3;
+		ctx.lineCap = 'round';
+		ctx.lineJoin = 'round';
+
+		ctx.beginPath();
+		ctx.moveTo(transformedLine[0].x, transformedLine[0].y);
+		for (let i = 1; i < transformedLine.length; i++) {
+			ctx.lineTo(transformedLine[i].x, transformedLine[i].y);
+		}
+		ctx.stroke();
+
+		// Highlight start/finish point if set
+		const startIdx = this.startIndex();
+		if (startIdx !== null && startIdx < transformedLine.length) {
+			const startPoint = transformedLine[startIdx];
+			ctx.fillStyle = '#ff0000'; // Red
+			ctx.beginPath();
+			ctx.arc(startPoint.x, startPoint.y, 8, 0, 2 * Math.PI);
+			ctx.fill();
+		}
+	}
+
 	ngOnDestroy() {
+		this.stopRenderLoop();
 		const url = this.videoSrc();
 		if (url) {
 			URL.revokeObjectURL(url);

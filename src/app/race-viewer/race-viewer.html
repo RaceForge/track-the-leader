@@ -80,7 +80,15 @@
 			<div class="toggles-group">
 				<label> <input type="checkbox" disabled /> Boxes </label>
 				<label> <input type="checkbox" disabled /> IDs </label>
-				<label> <input type="checkbox" disabled /> Track Line </label>
+				<label>
+					<input
+						type="checkbox"
+						[checked]="homographyService.debugMode()"
+						(change)="onToggleDebugMode($event)"
+						[disabled]="mode() !== 'locked'"
+					/>
+					Stabilized Track Line
+				</label>
 			</div>
 		</div>
 	</div>

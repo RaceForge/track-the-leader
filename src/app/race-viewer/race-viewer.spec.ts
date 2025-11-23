@@ -52,7 +52,9 @@ describe('RaceViewer', () => {
 		component.videoSrc.set('blob:test');
 		fixture.detectChanges();
 		const compiled = fixture.nativeElement as HTMLElement;
-		const checkboxes = compiled.querySelectorAll('.sidebar-section input[type="checkbox"]');
+		const checkboxes = compiled.querySelectorAll(
+			'.sidebar-section input[type="checkbox"]',
+		);
 		for (let i = 0; i < checkboxes.length; i++) {
 			expect((checkboxes[i] as HTMLInputElement).disabled).toBeTrue();
 		}
@@ -93,7 +95,7 @@ describe('RaceViewer', () => {
 			]);
 			fixture.detectChanges();
 			const undoButton = Array.from<HTMLButtonElement>(
-				fixture.nativeElement.querySelectorAll('button')
+				fixture.nativeElement.querySelectorAll('button'),
 			).find((btn) => btn.textContent?.includes('Undo'));
 			undoButton?.click();
 			fixture.detectChanges();
@@ -108,7 +110,7 @@ describe('RaceViewer', () => {
 			]);
 			fixture.detectChanges();
 			const resetButton = Array.from<HTMLButtonElement>(
-				fixture.nativeElement.querySelectorAll('button')
+				fixture.nativeElement.querySelectorAll('button'),
 			).find((btn) => btn.textContent?.includes('Reset'));
 			resetButton?.click();
 			fixture.detectChanges();
@@ -126,7 +128,7 @@ describe('RaceViewer', () => {
 			]);
 			fixture.detectChanges();
 			const finishButton = Array.from<HTMLButtonElement>(
-				fixture.nativeElement.querySelectorAll('button')
+				fixture.nativeElement.querySelectorAll('button'),
 			).find((btn) => btn.textContent?.includes('Finish'));
 			expect(finishButton?.disabled).toBeFalse();
 		});
@@ -142,7 +144,7 @@ describe('RaceViewer', () => {
 			]);
 			fixture.detectChanges();
 			const finishButton = Array.from<HTMLButtonElement>(
-				fixture.nativeElement.querySelectorAll('button')
+				fixture.nativeElement.querySelectorAll('button'),
 			).find((btn) => btn.textContent?.includes('Finish'));
 			finishButton?.click();
 			fixture.detectChanges();
@@ -176,10 +178,8 @@ describe('RaceViewer', () => {
 			component.startIndex.set(0);
 			fixture.detectChanges();
 			const confirmButton = Array.from<HTMLButtonElement>(
-				fixture.nativeElement.querySelectorAll('button')
-			).find((btn) =>
-				btn.textContent?.includes('Confirm Start/Finish')
-			);
+				fixture.nativeElement.querySelectorAll('button'),
+			).find((btn) => btn.textContent?.includes('Confirm Start/Finish'));
 			confirmButton?.click();
 			fixture.detectChanges();
 			expect(component.mode()).toBe('locked');
