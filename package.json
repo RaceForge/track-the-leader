@@ -34,6 +34,7 @@
 		"@angular/router": "^20.3.0",
 		"@angular/ssr": "^20.3.10",
 		"rxjs": "~7.8.0",
+		"tailwind": "4.0.0",
 		"tslib": "^2.3.0"
 	},
 	"devDependencies": {
