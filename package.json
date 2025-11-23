@@ -26,6 +26,7 @@
 		"@angular/router": "^21.0.0",
 		"@angular/ssr": "^21.0.0",
 		"@ngx-dropzone/cdk": "^20.0.0",
+		"opencv.js": "^1.2.1",
 		"rxjs": "~7.8.0",
 		"tslib": "^2.3.0"
 	},
