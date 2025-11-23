@@ -372,17 +372,28 @@ export class HomographyService {
 			this.lastInlierRatio.set(inlierRatio);
 			this.lastMatchCount.set(goodMatches.length);
 
-			const valid = this.validateHomography(candidate, inlierRatio, currentImage.width, currentImage.height);
+			const valid = this.validateHomography(
+				candidate,
+				inlierRatio,
+				currentImage.width,
+				currentImage.height,
+			);
 
 			let finalHomography: Homography;
 			if (!valid) {
 				// Fallback to last stable homography or identity
-				console.warn(`Rejected homography (inlierRatio=${inlierRatio.toFixed(2)}). Using fallback.`);
-				finalHomography = this.lastStableHomography || this.getIdentityHomography();
+				console.warn(
+					`Rejected homography (inlierRatio=${inlierRatio.toFixed(2)}). Using fallback.`,
+				);
+				finalHomography =
+					this.lastStableHomography || this.getIdentityHomography();
 			} else {
 				// Smoothing with previous stable homography
 				if (this.lastStableHomography) {
-					finalHomography = this.smoothHomography(this.lastStableHomography, candidate);
+					finalHomography = this.smoothHomography(
+						this.lastStableHomography,
+						candidate,
+					);
 				} else {
 					finalHomography = candidate;
 				}
@@ -418,7 +429,8 @@ export class HomographyService {
 	private countInliers(mask: CVObject): number {
 		let count = 0;
 		// OpenCV mask has one row per match; use size() if available
-		const rows = (mask as unknown as { rows?: number }).rows ?? mask.size?.() ?? 0;
+		const rows =
+			(mask as unknown as { rows?: number }).rows ?? mask.size?.() ?? 0;
 		for (let r = 0; r < rows; r++) {
 			// biome-ignore lint: ucharPtr not typed in our CVObject interface
 			const ptr = (mask as any).ucharPtr?.(r, 0);
@@ -427,7 +439,12 @@ export class HomographyService {
 		return count;
 	}
 
-	private validateHomography(H: Homography, inlierRatio: number, width: number, height: number): boolean {
+	private validateHomography(
+		H: Homography,
+		inlierRatio: number,
+		width: number,
+		height: number,
+	): boolean {
 		// Minimum acceptable inlier ratio
 		if (inlierRatio < 0.35) return false;
 
