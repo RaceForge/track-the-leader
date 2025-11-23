@@ -48,3 +48,6 @@ Thumbs.db
 !.dev.vars.example
 .env*
 !.env.example
+
+# ONNX models (large files)
+public/assets/*.onnx

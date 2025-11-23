@@ -9,6 +9,7 @@ import {
 	signal,
 	ViewChild,
 } from '@angular/core';
+import { DetectionService } from '../services/detection.service';
 import { HomographyService } from '../services/homography.service';
 
 type Point2D = { x: number; y: number };
@@ -27,6 +28,7 @@ export class RaceViewer implements OnDestroy {
 	@ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
 
 	homographyService = inject(HomographyService);
+	detectionService = inject(DetectionService);
 	private animationFrameId: number | null = null;
 
 	videoSrc = signal<string | null>(null);
@@ -65,7 +67,8 @@ export class RaceViewer implements OnDestroy {
 		// Re-render when debug mode changes
 		effect(() => {
 			const debugMode = this.homographyService.debugMode();
-			if (debugMode && this.overlayCanvas) {
+			const showDetections = this.detectionService.showDetections();
+			if ((debugMode || showDetections) && this.overlayCanvas) {
 				this.startRenderLoop();
 			} else {
 				this.stopRenderLoop();
@@ -73,6 +76,11 @@ export class RaceViewer implements OnDestroy {
 					this.renderPolyline();
 				}
 			}
+		});
+
+		// Load detection model when service is created
+		this.detectionService.loadModel().catch((err) => {
+			console.error('Failed to load detection model:', err);
 		});
 	}
 
@@ -304,7 +312,7 @@ export class RaceViewer implements OnDestroy {
 		}
 	}
 
-	private updateFrameAndRender(): void {
+	private async updateFrameAndRender(): Promise<void> {
 		if (!this.videoPlayer || !this.overlayCanvas) return;
 
 		const video = this.videoPlayer.nativeElement;
@@ -315,14 +323,20 @@ export class RaceViewer implements OnDestroy {
 		const frameIndex = Math.floor(video.currentTime * fps);
 		this.homographyService.currentFrameIndex.set(frameIndex);
 
-		// Capture current frame for homography computation
+		// Capture current frame for homography computation and detection
 		const imageData = this.captureFrameData();
 		if (imageData) {
 			this.homographyService.computeHomography(frameIndex, imageData);
+
+			// Run detection if enabled
+			if (this.detectionService.showDetections()) {
+				await this.detectionService.detectObjects(imageData, frameIndex);
+			}
 		}
 
-		// Render transformed track line
+		// Render transformed track line and detections
 		this.renderStabilizedTrackLine();
+		this.renderDetections(frameIndex);
 	}
 
 	private captureFrameData(): ImageData | null {
@@ -382,6 +396,59 @@ export class RaceViewer implements OnDestroy {
 			ctx.arc(startPoint.x, startPoint.y, 8, 0, 2 * Math.PI);
 			ctx.fill();
 		}
+	}
+
+	private renderDetections(frameIndex: number): void {
+		if (!this.overlayCanvas || !this.detectionService.showDetections()) {
+			return;
+		}
+
+		const canvas = this.overlayCanvas.nativeElement;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+
+		const detections = this.detectionService.getDetections(frameIndex);
+		if (!detections || detections.length === 0) return;
+
+		// Draw each detection
+		for (const detection of detections) {
+			const { box, className, confidence, center } = detection;
+
+			// Draw bounding box
+			ctx.strokeStyle = '#00ff00'; // Green
+			ctx.lineWidth = 3;
+			ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+			// Draw center point
+			ctx.fillStyle = '#ff0000'; // Red
+			ctx.beginPath();
+			ctx.arc(center.x, center.y, 5, 0, 2 * Math.PI);
+			ctx.fill();
+
+			// Draw label background
+			const label = `${className} ${(confidence * 100).toFixed(0)}%`;
+			ctx.font = '16px monospace';
+			const textMetrics = ctx.measureText(label);
+			const textHeight = 20;
+			const padding = 4;
+
+			ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+			ctx.fillRect(
+				box.x,
+				box.y - textHeight - padding,
+				textMetrics.width + padding * 2,
+				textHeight + padding,
+			);
+
+			// Draw label text
+			ctx.fillStyle = '#000000'; // Black
+			ctx.fillText(label, box.x + padding, box.y - padding);
+		}
+	}
+
+	onToggleDetections(event: Event): void {
+		const checked = (event.target as HTMLInputElement).checked;
+		this.detectionService.showDetections.set(checked);
 	}
 
 	ngOnDestroy() {
