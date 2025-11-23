@@ -474,6 +474,20 @@ export class HomographyService {
 		return true;
 	}
 
+	/**
+	 * Smooth homography matrix using exponential moving average (EMA).
+	 *
+	 * Applies temporal smoothing to reduce jitter between consecutive frames:
+	 *   H_smooth[i][j] = α * H_next[i][j] + (1 - α) * H_prev[i][j]
+	 *
+	 * Where α (alpha) is the smoothing factor from smoothingAlpha property.
+	 * Higher α values give more weight to the new homography (less smoothing),
+	 * while lower α values give more weight to the previous homography (more smoothing).
+	 *
+	 * @param prev - Previous homography matrix to smooth from
+	 * @param next - New homography matrix to smooth toward
+	 * @returns Smoothed homography matrix
+	 */
 	private smoothHomography(prev: Homography, next: Homography): Homography {
 		const a = this.smoothingAlpha;
 		const out: Homography = [
