@@ -62,6 +62,16 @@ export class HomographyService {
 	/** Cache of computed homographies indexed by frame number */
 	readonly homographies = new Map<number, Homography>();
 
+	/** Last homography that passed validation */
+	private lastStableHomography: Homography | null = null;
+
+	/** Smoothing factor (EMA) applied to validated homographies */
+	private readonly smoothingAlpha = 0.2;
+
+	/** Debug metrics */
+	readonly lastInlierRatio = signal<number>(0);
+	readonly lastMatchCount = signal<number>(0);
+
 	/** Frame index where user defined the track line */
 	readonly referenceFrameIndex = signal<number | null>(null);
 	/** Pixel data of reference frame for feature extraction */
@@ -141,6 +151,16 @@ export class HomographyService {
 			return;
 		}
 
+		// Clean up old reference features to prevent memory leaks
+		if (this.referenceKeypoints) {
+			this.referenceKeypoints.delete();
+			this.referenceKeypoints = null;
+		}
+		if (this.referenceDescriptors) {
+			this.referenceDescriptors.delete();
+			this.referenceDescriptors = null;
+		}
+
 		try {
 			// Extract features from reference frame
 			const mat = cv.matFromImageData(imageData);
@@ -149,12 +169,13 @@ export class HomographyService {
 
 			// Use ORB detector
 			const orb = new cv.ORB(500);
+			const mask = new cv.Mat();
 			this.referenceKeypoints = new cv.KeyPointVector();
 			this.referenceDescriptors = new cv.Mat();
 
 			orb.detectAndCompute(
 				gray,
-				new cv.Mat(),
+				mask,
 				this.referenceKeypoints,
 				this.referenceDescriptors,
 			);
@@ -166,6 +187,7 @@ export class HomographyService {
 			// Cleanup
 			mat.delete();
 			gray.delete();
+			mask.delete();
 			orb.delete();
 		} catch (error) {
 			console.error('Error extracting reference features:', error);
@@ -214,6 +236,7 @@ export class HomographyService {
 		if (frameIndex === this.referenceFrameIndex()) {
 			const identity = this.getIdentityHomography();
 			this.homographies.set(frameIndex, identity);
+			this.lastStableHomography = identity;
 			return identity;
 		}
 
@@ -238,17 +261,18 @@ export class HomographyService {
 			const orb = new cv.ORB(500);
 			const currentKeypoints = new cv.KeyPointVector();
 			const currentDescriptors = new cv.Mat();
+			const mask = new cv.Mat();
 
 			orb.detectAndCompute(
 				currentGray,
-				new cv.Mat(),
+				mask,
 				currentKeypoints,
 				currentDescriptors,
 			);
 
 			if (currentDescriptors.empty() || currentKeypoints.size() < 4) {
 				console.warn('Not enough keypoints in current frame');
-				this.cleanup([currentMat, currentGray, currentDescriptors, orb]);
+				this.cleanup([currentMat, currentGray, currentDescriptors, mask, orb]);
 				currentKeypoints.delete();
 				return this.getLastValidHomography(frameIndex);
 			}
@@ -278,6 +302,7 @@ export class HomographyService {
 					currentMat,
 					currentGray,
 					currentDescriptors,
+					mask,
 					matches,
 					orb,
 					bf,
@@ -311,8 +336,9 @@ export class HomographyService {
 				dstPoints,
 			);
 
-			// Compute homography with RANSAC
-			const H = cv.findHomography(srcMat, dstMat, cv.RANSAC, 5.0);
+			// Compute homography with RANSAC (retrieve inlier mask)
+			const inlierMask = new cv.Mat();
+			const H = cv.findHomography(srcMat, dstMat, cv.RANSAC, 5.0, inlierMask);
 
 			if (H.empty()) {
 				console.warn('Homography computation failed');
@@ -320,9 +346,11 @@ export class HomographyService {
 					currentMat,
 					currentGray,
 					currentDescriptors,
+					mask,
 					matches,
 					srcMat,
 					dstMat,
+					inlierMask,
 					H,
 					orb,
 					bf,
@@ -331,35 +359,117 @@ export class HomographyService {
 				return this.getLastValidHomography(frameIndex);
 			}
 
-			// Convert to 3x3 array
-			const homography: Homography = [
+			// Convert to 3x3 array (candidate)
+			const candidate: Homography = [
 				[H.doubleAt(0, 0), H.doubleAt(0, 1), H.doubleAt(0, 2)],
 				[H.doubleAt(1, 0), H.doubleAt(1, 1), H.doubleAt(1, 2)],
 				[H.doubleAt(2, 0), H.doubleAt(2, 1), H.doubleAt(2, 2)],
 			];
 
-			// Store homography
-			this.homographies.set(frameIndex, homography);
+			// Quality & validation
+			const inliers = this.countInliers(inlierMask);
+			const inlierRatio = inliers / goodMatches.length;
+			this.lastInlierRatio.set(inlierRatio);
+			this.lastMatchCount.set(goodMatches.length);
+
+			const valid = this.validateHomography(candidate, inlierRatio, currentImage.width, currentImage.height);
+
+			let finalHomography: Homography;
+			if (!valid) {
+				// Fallback to last stable homography or identity
+				console.warn(`Rejected homography (inlierRatio=${inlierRatio.toFixed(2)}). Using fallback.`);
+				finalHomography = this.lastStableHomography || this.getIdentityHomography();
+			} else {
+				// Smoothing with previous stable homography
+				if (this.lastStableHomography) {
+					finalHomography = this.smoothHomography(this.lastStableHomography, candidate);
+				} else {
+					finalHomography = candidate;
+				}
+				this.lastStableHomography = finalHomography;
+			}
+
+			this.homographies.set(frameIndex, finalHomography);
 
 			// Cleanup
 			this.cleanup([
 				currentMat,
 				currentGray,
 				currentDescriptors,
+				mask,
 				matches,
 				srcMat,
 				dstMat,
+				inlierMask,
 				H,
 				orb,
 				bf,
 			]);
 			currentKeypoints.delete();
 
-			return homography;
+			return finalHomography;
 		} catch (error) {
 			console.error('Error computing homography:', error);
 			return this.getLastValidHomography(frameIndex);
 		}
+	}
+
+	// Count inliers from RANSAC mask (1 = inlier, 0 = outlier)
+	private countInliers(mask: CVObject): number {
+		let count = 0;
+		// OpenCV mask has one row per match; use size() if available
+		const rows = (mask as unknown as { rows?: number }).rows ?? mask.size?.() ?? 0;
+		for (let r = 0; r < rows; r++) {
+			// biome-ignore lint: ucharPtr not typed in our CVObject interface
+			const ptr = (mask as any).ucharPtr?.(r, 0);
+			if (ptr && ptr[0] === 1) count++;
+		}
+		return count;
+	}
+
+	private validateHomography(H: Homography, inlierRatio: number, width: number, height: number): boolean {
+		// Minimum acceptable inlier ratio
+		if (inlierRatio < 0.35) return false;
+
+		// Extract approximate scale (ignore perspective components)
+		const a = H[0][0];
+		const b = H[0][1];
+		const d = H[1][0];
+		const e = H[1][1];
+		const scaleX = Math.sqrt(a * a + d * d);
+		const scaleY = Math.sqrt(b * b + e * e);
+
+		if (scaleX < 0.5 || scaleX > 2.0) return false;
+		if (scaleY < 0.5 || scaleY > 2.0) return false;
+
+		// Translation bounds (relative to frame size)
+		const tx = H[0][2];
+		const ty = H[1][2];
+		const maxTx = width * 0.5; // allow up to half frame shift
+		const maxTy = height * 0.5;
+		if (Math.abs(tx) > maxTx || Math.abs(ty) > maxTy) return false;
+
+		// Perspective terms should be small for typical track camera
+		const p1 = Math.abs(H[2][0]);
+		const p2 = Math.abs(H[2][1]);
+		if (p1 > 0.01 || p2 > 0.01) return false;
+
+		return true;
+	}
+
+	private smoothHomography(prev: Homography, next: Homography): Homography {
+		const a = this.smoothingAlpha;
+		const out: Homography = [
+			[0, 0, 0],
+			[0, 0, 0],
+			[0, 0, 0],
+		];
+		for (let i = 0; i < 3; i++) {
+			for (let j = 0; j < 3; j++) {
+				out[i][j] = a * next[i][j] + (1 - a) * prev[i][j];
+			}
+		}
+		return out;
 	}
 
 	/**
@@ -519,12 +629,22 @@ export class HomographyService {
 	}
 
 	/**
-	 * Clear all stored data
+	 * Clear all stored data and free OpenCV memory
 	 */
 	clear(): void {
 		this.homographies.clear();
 		this.referenceFrameIndex.set(null);
 		this.referenceFrameImage.set(null);
 		this.currentFrameIndex.set(0);
+
+		// Clean up reference features
+		if (this.referenceKeypoints) {
+			this.referenceKeypoints.delete();
+			this.referenceKeypoints = null;
+		}
+		if (this.referenceDescriptors) {
+			this.referenceDescriptors.delete();
+			this.referenceDescriptors = null;
+		}
 	}
 }
