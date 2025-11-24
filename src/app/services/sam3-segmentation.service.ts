@@ -51,7 +51,7 @@ export class Sam3SegmentationService {
 	private model: any = null;
 
 	/** Model configuration */
-	readonly modelPath = signal<string>('/assets/sam3.onnx');
+	readonly modelPath = signal<string>('/assets/sam2_tiny_image_encoder.onnx');
 
 	constructor() {
 		this.checkWebGPU();
