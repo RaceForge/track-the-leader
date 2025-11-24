@@ -96,6 +96,20 @@
 			}
 			@if (manualSelections().length > 0 && !isMarkingCars()) {
 				<div class="status-text success">✓ {{ manualSelections().length }} cars selected</div>
+				<div class="controls-group">
+					<button (click)="onRunSamSegmentation()" [disabled]="segmentationInProgress()">
+						Run SAM3 Segmentation
+					</button>
+				</div>
+				@if (segmentationInProgress()) {
+					<div class="status-text">Running SAM3 segmentation...</div>
+				}
+				@if (segmentationError()) {
+					<div class="status-text error">{{ segmentationError() }}</div>
+				}
+				@if (!segmentationInProgress() && segmentationOverlays().size > 0) {
+					<div class="status-text success">✓ SAM3 masks ready</div>
+				}
 			}
 		</div>
 

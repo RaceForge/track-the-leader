@@ -4,5 +4,6 @@ onlyBuiltDependencies:
   - esbuild
   - lmdb
   - msgpackr-extract
+  - protobufjs
   - sharp
   - workerd

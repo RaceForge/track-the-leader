@@ -22,6 +22,11 @@
 							{
 								"glob": "**/*",
 								"input": "public"
+							},
+							{
+								"glob": "ort-wasm*.{js,mjs,wasm}",
+								"input": "node_modules/onnxruntime-web/dist",
+								"output": "assets/ort-wasm"
 							}
 						],
 						"styles": ["src/styles.css"],

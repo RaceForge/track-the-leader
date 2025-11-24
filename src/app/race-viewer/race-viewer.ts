@@ -14,6 +14,11 @@ import {
 	type Proposal,
 	ProposalGeneratorService,
 } from '../services/proposal-generator.service';
+import {
+	Sam3SegmentationService,
+	type SamMaskResult,
+	type SamPrompt,
+} from '../services/sam3-segmentation.service';
 
 // biome-ignore lint: OpenCV global provided via script tag
 declare const cv: any;
@@ -41,6 +46,7 @@ export class RaceViewer implements OnDestroy {
 
 	homographyService = inject(HomographyService);
 	proposalService = inject(ProposalGeneratorService);
+	sam3Service = inject(Sam3SegmentationService);
 	private animationFrameId: number | null = null;
 
 	videoSrc = signal<string | null>(null);
@@ -61,6 +67,9 @@ export class RaceViewer implements OnDestroy {
 			bbox: [number, number, number, number];
 		}>
 	>([]);
+	segmentationInProgress = signal(false);
+	segmentationError = signal<string | null>(null);
+	segmentationOverlays = signal<Map<number, HTMLCanvasElement>>(new Map());
 	private nextCarId = 1;
 
 	// Computed state for UI controls
@@ -89,6 +98,7 @@ export class RaceViewer implements OnDestroy {
 			this.trackLine();
 			this.startIndex();
 			this.manualSelections();
+			this.segmentationOverlays();
 			if (this.overlayCanvas) {
 				this.renderPolyline();
 			}
@@ -135,6 +145,8 @@ export class RaceViewer implements OnDestroy {
 				}
 				const url = URL.createObjectURL(file);
 				this.videoSrc.set(url);
+				this.manualSelections.set([]);
+				this.clearSegmentationResults();
 			} else {
 				alert('Please drop an .mp4 or .mov file.');
 			}
@@ -165,6 +177,8 @@ export class RaceViewer implements OnDestroy {
 		this.mode.set('mapping');
 		this.trackLine.set([]);
 		this.startIndex.set(null);
+		this.manualSelections.set([]);
+		this.clearSegmentationResults();
 		this.pauseVideo();
 	}
 
@@ -178,6 +192,7 @@ export class RaceViewer implements OnDestroy {
 	onReset() {
 		this.trackLine.set([]);
 		this.startIndex.set(null);
+		this.clearSegmentationResults();
 	}
 
 	onFinish() {
@@ -220,6 +235,7 @@ export class RaceViewer implements OnDestroy {
 		this.pauseVideo();
 		this.mode.set('marking-cars');
 		this.manualSelections.set([]);
+		this.clearSegmentationResults();
 	}
 
 	onConfirmCarSelection() {
@@ -231,12 +247,18 @@ export class RaceViewer implements OnDestroy {
 		this.mode.set('locked');
 		this.initializeTemplates();
 		this.playVideo();
+		void this.runSegmentationForSelections();
 	}
 
 	onCancelCarMarking() {
 		this.manualSelections.set([]);
 		this.clearTemplates();
+		this.clearSegmentationResults();
 		this.mode.set('locked');
+	}
+
+	onRunSamSegmentation() {
+		void this.runSegmentationForSelections();
 	}
 
 	// Canvas interaction
@@ -378,6 +400,29 @@ export class RaceViewer implements OnDestroy {
 
 	// Render manual car selections as bounding boxes
 	renderManualSelections(ctx: CanvasRenderingContext2D) {
+		const canvas = this.overlayCanvas?.nativeElement;
+		if (!canvas) return;
+
+		const overlays = this.segmentationOverlays();
+		if (overlays.size > 0) {
+			ctx.save();
+			ctx.globalAlpha = 0.35;
+			for (const overlay of overlays.values()) {
+				ctx.drawImage(
+					overlay,
+					0,
+					0,
+					overlay.width,
+					overlay.height,
+					0,
+					0,
+					canvas.width,
+					canvas.height,
+				);
+			}
+			ctx.restore();
+		}
+
 		const selections = this.manualSelections();
 
 		for (const selection of selections) {
@@ -570,6 +615,104 @@ export class RaceViewer implements OnDestroy {
 			} catch {}
 		}
 		this.trackingTemplates.clear();
+	}
+
+	private clearSegmentationResults(): void {
+		this.segmentationOverlays.set(new Map());
+		this.segmentationError.set(null);
+		this.segmentationInProgress.set(false);
+	}
+
+	private async runSegmentationForSelections(): Promise<void> {
+		if (this.segmentationInProgress()) {
+			return;
+		}
+		const selections = this.manualSelections();
+		if (selections.length === 0) {
+			return;
+		}
+
+		const frameData = this.captureFrameData();
+		if (!frameData) {
+			this.segmentationError.set('Unable to capture frame for segmentation.');
+			return;
+		}
+
+		this.segmentationInProgress.set(true);
+		this.segmentationError.set(null);
+		this.segmentationOverlays.set(new Map());
+
+		try {
+			if (!this.sam3Service.isLoaded()) {
+				await this.sam3Service.loadModel();
+				if (!this.sam3Service.isLoaded()) {
+					throw new Error('SAM3 model failed to load');
+				}
+			}
+
+			const overlays = new Map<number, HTMLCanvasElement>();
+			const updatedSelections: Array<{
+				id: number;
+				center: Point2D;
+				bbox: [number, number, number, number];
+			}> = [];
+
+			for (const selection of selections) {
+				const prompt: SamPrompt = {
+					point: selection.center,
+					box: selection.bbox,
+				};
+				const result = await this.sam3Service.runSegmentation(frameData, prompt);
+				updatedSelections.push({
+					id: selection.id,
+					center: result.centroid,
+					bbox: result.bbox,
+				});
+				const overlay = this.createMaskOverlay(result);
+				if (overlay) {
+					overlays.set(selection.id, overlay);
+				}
+			}
+
+			this.manualSelections.set(updatedSelections);
+			this.segmentationOverlays.set(overlays);
+
+			if (this.mode() === 'locked') {
+				this.initializeTemplates();
+			}
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : 'Segmentation failed';
+			this.segmentationError.set(message);
+			console.error('SAM3 segmentation failed:', error);
+		} finally {
+			this.segmentationInProgress.set(false);
+		}
+	}
+
+	private createMaskOverlay(result: SamMaskResult): HTMLCanvasElement | null {
+		if (typeof document === 'undefined') {
+			return null;
+		}
+		const maskCanvas = document.createElement('canvas');
+		maskCanvas.width = result.width;
+		maskCanvas.height = result.height;
+		const maskCtx = maskCanvas.getContext('2d');
+		if (!maskCtx) {
+			return null;
+		}
+		const maskImage = maskCtx.createImageData(result.width, result.height);
+		for (let i = 0; i < result.mask.length; i++) {
+			if (result.mask[i] > 0) {
+				const idx = i * 4;
+				maskImage.data[idx] = 0;
+				maskImage.data[idx + 1] = 255;
+				maskImage.data[idx + 2] = 0;
+				maskImage.data[idx + 3] = 100;
+			}
+		}
+		maskCtx.putImageData(maskImage, 0, 0);
+		return maskCanvas;
 	}
 
 	// Tracking update logic kept for future use (currently unused to keep UI responsive)
