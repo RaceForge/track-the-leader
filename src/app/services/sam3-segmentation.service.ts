@@ -1,5 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 
+type WebGpuNavigator = Navigator & { gpu?: GPU };
+
 export type Point2D = { x: number; y: number };
 
 export type SamPrompt = {
@@ -48,7 +50,7 @@ export class Sam3SegmentationService {
 	webGpuAvailable = signal<boolean>(false);
 
 	/** Model reference (will be typed based on actual implementation) */
-	private model: any = null;
+	private model: unknown = null;
 
 	/** Model configuration */
 	readonly modelPath = signal<string>('/assets/sam2_tiny_image_encoder.onnx');
@@ -63,7 +65,9 @@ export class Sam3SegmentationService {
 	private async checkWebGPU(): Promise<void> {
 		if ('gpu' in navigator) {
 			try {
-				const adapter = await (navigator as any).gpu.requestAdapter();
+				const adapter = await (
+					navigator as WebGpuNavigator
+				).gpu?.requestAdapter();
 				if (adapter) {
 					this.webGpuAvailable.set(true);
 					console.log('WebGPU is available');
@@ -206,7 +210,7 @@ export class Sam3SegmentationService {
 	private preprocessInput(
 		imageData: ImageData,
 		prompt: SamPrompt,
-	): { imageTensor: any; promptTensor: any } {
+	): { imageTensor: unknown; promptTensor: unknown } {
 		// Placeholder implementation
 		console.log('Preprocessing input:', {
 			imageSize: `${imageData.width}x${imageData.height}`,
@@ -227,9 +231,9 @@ export class Sam3SegmentationService {
 	 * - ONNX Runtime Web: session.run(feeds)
 	 * - TensorFlow.js: model.predict(inputs)
 	 */
-	private async runInference(preprocessed: {
-		imageTensor: any;
-		promptTensor: any;
+	private async runInference(_preprocessed: {
+		imageTensor: unknown;
+		promptTensor: unknown;
 	}): Promise<Uint8ClampedArray> {
 		// Placeholder implementation
 		console.log('Running inference...');

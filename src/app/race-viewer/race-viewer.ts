@@ -292,9 +292,7 @@ export class RaceViewer implements OnDestroy {
 	}
 
 	// Find manual selection that contains the given point
-	findSelectionAtPoint(
-		point: Point2D,
-	): {
+	findSelectionAtPoint(point: Point2D): {
 		id: number;
 		center: Point2D;
 		bbox: [number, number, number, number];

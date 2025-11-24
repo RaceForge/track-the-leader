@@ -2,15 +2,17 @@ import { Injectable, signal } from '@angular/core';
 
 export type Point2D = { x: number; y: number };
 
+type CvNamespace = typeof import('@techstark/opencv-js');
+type CvMat = InstanceType<CvNamespace['Mat']>;
+
+declare const cv: CvNamespace;
+
 export type Proposal = {
 	id: number;
 	bbox: [number, number, number, number]; // [x, y, width, height]
 	centroid: Point2D;
 	area: number;
 };
-
-// biome-ignore lint: OpenCV global is loaded dynamically
-declare const cv: any;
 
 /**
  * Motion-based proposal generator for RC car detection.
@@ -33,7 +35,7 @@ declare const cv: any;
 })
 export class ProposalGeneratorService {
 	/** Background reference frame for motion detection */
-	private backgroundFrame: any = null; // cv.Mat
+	private backgroundFrame: CvMat | null = null;
 
 	/** Whether OpenCV.js is ready */
 	cvReady = signal<boolean>(false);

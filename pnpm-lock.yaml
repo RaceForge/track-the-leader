@@ -57,12 +57,18 @@ importers:
       '@biomejs/biome':
         specifier: 2.3.7
         version: 2.3.7
+      '@techstark/opencv-js':
+        specifier: 4.12.0-release.1
+        version: 4.12.0-release.1
       '@types/jasmine':
         specifier: ~5.1.0
         version: 5.1.13
       '@types/node':
         specifier: ^20.17.19
         version: 20.19.25
+      '@webgpu/types':
+        specifier: ^0.1.66
+        version: 0.1.66
       jasmine-core:
         specifier: ~5.9.0
         version: 5.9.0
@@ -1809,6 +1815,9 @@ packages:
   '@standard-schema/spec@1.0.0':
     resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
 
+  '@techstark/opencv-js@4.12.0-release.1':
+    resolution: {integrity: sha512-LtTaph9v/HqLPXEg3m1xs2h7QJh10pUpuDT0nj8g77lelWnTwwQrehtd+fXElLOdrkqc4Fea6Z/sJBvEJLYPfw==}
+
   '@tufjs/canonical-json@2.0.0':
     resolution: {integrity: sha512-yVtV8zsdo8qFHe+/3kw81dSLyF7D576A5cCFCi4X7B39tWT7SekaEFUnvnWJHz+9qO7qJTah1JbrDjWKqFtdWA==}
     engines: {node: ^16.14.0 || >=18.0.0}
@@ -1837,6 +1846,9 @@ packages:
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     peerDependencies:
       vite: ^6.0.0 || ^7.0.0
+
+  '@webgpu/types@0.1.66':
+    resolution: {integrity: sha512-YA2hLrwLpDsRueNDXIMqN9NTzD6bCDkuXbOSe0heS+f8YE8usA6Gbv1prj81pzVHrbaAma7zObnIC+I6/sXJgA==}
 
   '@yarnpkg/lockfile@1.1.0':
     resolution: {integrity: sha512-GpSwvyXOcOOlV70vbnzjj4fW5xW/FdUF6nQEt1ENy7m4ZCczi1+/buVUPAqmGfqznsORNFzUMjctTIp8a9tuCQ==}
@@ -4982,6 +4994,8 @@ snapshots:
 
   '@standard-schema/spec@1.0.0': {}
 
+  '@techstark/opencv-js@4.12.0-release.1': {}
+
   '@tufjs/canonical-json@2.0.0': {}
 
   '@tufjs/models@4.0.0':
@@ -5009,6 +5023,8 @@ snapshots:
   '@vitejs/plugin-basic-ssl@2.1.0(vite@7.2.2(@types/node@20.19.25)(sass@1.93.2))':
     dependencies:
       vite: 7.2.2(@types/node@20.19.25)(sass@1.93.2)
+
+  '@webgpu/types@0.1.66': {}
 
   '@yarnpkg/lockfile@1.1.0': {}
 
