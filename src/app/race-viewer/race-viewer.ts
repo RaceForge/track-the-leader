@@ -10,7 +10,10 @@ import {
 	ViewChild,
 } from '@angular/core';
 import { HomographyService } from '../services/homography.service';
-import { ProposalGeneratorService, type Proposal } from '../services/proposal-generator.service';
+import {
+	type Proposal,
+	ProposalGeneratorService,
+} from '../services/proposal-generator.service';
 
 // biome-ignore lint: OpenCV global provided via script tag
 declare const cv: any;
@@ -18,7 +21,12 @@ declare const cv: any;
 type Point2D = { x: number; y: number };
 type CvMatLike = { cols: number; rows: number; delete(): void };
 
-type ViewMode = 'normal' | 'mapping' | 'start-finish' | 'locked' | 'marking-cars';
+type ViewMode =
+	| 'normal'
+	| 'mapping'
+	| 'start-finish'
+	| 'locked'
+	| 'marking-cars';
 
 @Component({
 	selector: 'app-race-viewer',
@@ -46,13 +54,22 @@ export class RaceViewer implements OnDestroy {
 	// Milestone 3: Car detection and selection
 	proposals = signal<Proposal[]>([]);
 	selectedCarIds = signal<Set<number>>(new Set());
-	manualSelections = signal<Array<{ id: number; center: Point2D; bbox: [number, number, number, number] }>>([]);
+	manualSelections = signal<
+		Array<{
+			id: number;
+			center: Point2D;
+			bbox: [number, number, number, number];
+		}>
+	>([]);
 	private nextCarId = 1;
 
 	// Computed state for UI controls
 	canFinishMapping = computed(() => this.trackLine().length > 4);
 	canStartTracking = computed(
-		() => this.mode() === 'locked' && this.startIndex() !== null && this.manualSelections().length > 0,
+		() =>
+			this.mode() === 'locked' &&
+			this.startIndex() !== null &&
+			this.manualSelections().length > 0,
 	);
 	isMapping = computed(() => this.mode() === 'mapping');
 	isSelectingStartFinish = computed(() => this.mode() === 'start-finish');
@@ -184,8 +201,8 @@ export class RaceViewer implements OnDestroy {
 		}
 	}
 
-// Tracking state (templates kept for future use, but tracking loop disabled for now)
-private trackingTemplates = new Map<number, unknown>(); // id -> cv.Mat template (grayscale)
+	// Tracking state (templates kept for future use, but tracking loop disabled for now)
+	private trackingTemplates = new Map<number, unknown>(); // id -> cv.Mat template (grayscale)
 
 	onStartTracking() {
 		if (this.manualSelections().length === 0) {
@@ -250,8 +267,8 @@ private trackingTemplates = new Map<number, unknown>(); // id -> cv.Mat template
 			const clickedSelection = this.findSelectionAtPoint({ x, y });
 			if (clickedSelection) {
 				// Remove this selection
-				this.manualSelections.update(selections =>
-					selections.filter(s => s.id !== clickedSelection.id)
+				this.manualSelections.update((selections) =>
+					selections.filter((s) => s.id !== clickedSelection.id),
 				);
 			} else {
 				// Add new car selection at this point
@@ -259,20 +276,29 @@ private trackingTemplates = new Map<number, unknown>(); // id -> cv.Mat template
 				const newSelection = {
 					id: this.nextCarId++,
 					center: { x, y },
-					bbox: [
-						x - boxSize / 2,
-						y - boxSize / 2,
-						boxSize,
-						boxSize
-					] as [number, number, number, number]
+					bbox: [x - boxSize / 2, y - boxSize / 2, boxSize, boxSize] as [
+						number,
+						number,
+						number,
+						number,
+					],
 				};
-				this.manualSelections.update(selections => [...selections, newSelection]);
+				this.manualSelections.update((selections) => [
+					...selections,
+					newSelection,
+				]);
 			}
 		}
 	}
 
 	// Find manual selection that contains the given point
-	findSelectionAtPoint(point: Point2D): { id: number; center: Point2D; bbox: [number, number, number, number] } | null {
+	findSelectionAtPoint(
+		point: Point2D,
+	): {
+		id: number;
+		center: Point2D;
+		bbox: [number, number, number, number];
+	} | null {
 		const selections = this.manualSelections();
 		for (const selection of selections) {
 			const [x, y, width, height] = selection.bbox;
@@ -287,7 +313,6 @@ private trackingTemplates = new Map<number, unknown>(); // id -> cv.Mat template
 		}
 		return null;
 	}
-
 
 	// Find nearest point on the polyline to given position
 	findNearestPointIndex(pos: Point2D): number | null {
@@ -428,7 +453,6 @@ private trackingTemplates = new Map<number, unknown>(); // id -> cv.Mat template
 		const frameIndex = Math.floor(video.currentTime * fps);
 		this.homographyService.currentFrameIndex.set(frameIndex);
 
-
 		// Render stabilized track line + selections
 		this.renderStabilizedTrackLine();
 		// Lightweight path: just redraw overlays so video can render smoothly
@@ -520,8 +544,13 @@ private trackingTemplates = new Map<number, unknown>(); // id -> cv.Mat template
 		const frameGray = new cv.Mat();
 		cv.cvtColor(frameMatRGBA, frameGray, cv.COLOR_RGBA2GRAY);
 		for (const sel of this.manualSelections()) {
-			const [x, y, w, h] = sel.bbox.map(v => Math.round(v));
-			const roiRect = new cv.Rect(Math.max(0, x), Math.max(0, y), Math.min(w, frameGray.cols - x), Math.min(h, frameGray.rows - y));
+			const [x, y, w, h] = sel.bbox.map((v) => Math.round(v));
+			const roiRect = new cv.Rect(
+				Math.max(0, x),
+				Math.max(0, y),
+				Math.min(w, frameGray.cols - x),
+				Math.min(h, frameGray.rows - y),
+			);
 			const template = frameGray.roi(roiRect).clone();
 			this.trackingTemplates.set(sel.id, template);
 		}
@@ -531,17 +560,21 @@ private trackingTemplates = new Map<number, unknown>(); // id -> cv.Mat template
 		// Restore overlay so the canvas returns to showing only annotations
 		ctx.putImageData(overlaySnapshot, 0, 0);
 
-		console.log(`Initialized ${this.trackingTemplates.size} tracking templates`);
+		console.log(
+			`Initialized ${this.trackingTemplates.size} tracking templates`,
+		);
 	}
 
 	private clearTemplates(): void {
 		for (const tpl of this.trackingTemplates.values()) {
-			try { (tpl as CvMatLike).delete(); } catch {}
+			try {
+				(tpl as CvMatLike).delete();
+			} catch {}
 		}
 		this.trackingTemplates.clear();
 	}
 
-// Tracking update logic kept for future use (currently unused to keep UI responsive)
+	// Tracking update logic kept for future use (currently unused to keep UI responsive)
 	// private updateTrackedPositions(imageData: ImageData): void {
 	// 	try {
 	// 		const frameMatRGBA = cv.matFromImageData(imageData);

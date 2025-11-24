@@ -125,10 +125,7 @@ export class ProposalGeneratorService {
 	 * @param trackLine - Optional track polyline to filter proposals near track
 	 * @returns Array of proposals (bounding boxes with centroids)
 	 */
-	generateProposals(
-		imageData: ImageData,
-		trackLine?: Point2D[],
-	): Proposal[] {
+	generateProposals(imageData: ImageData, trackLine?: Point2D[]): Proposal[] {
 		if (!this.cvReady()) {
 			console.warn('OpenCV not ready, cannot generate proposals');
 			return [];
@@ -151,16 +148,13 @@ export class ProposalGeneratorService {
 
 			// Apply threshold to create binary mask
 			const binary = new cv.Mat();
-			cv.threshold(
-				diff,
-				binary,
-				this.diffThreshold(),
-				255,
-				cv.THRESH_BINARY,
-			);
+			cv.threshold(diff, binary, this.diffThreshold(), 255, cv.THRESH_BINARY);
 
 			// Morphological operations to clean noise
-			const kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(5, 5));
+			const kernel = cv.getStructuringElement(
+				cv.MORPH_ELLIPSE,
+				new cv.Size(5, 5),
+			);
 			const opened = new cv.Mat();
 			const closed = new cv.Mat();
 

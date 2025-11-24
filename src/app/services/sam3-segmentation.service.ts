@@ -153,9 +153,7 @@ export class Sam3SegmentationService {
 		prompt: SamPrompt,
 	): Promise<SamMaskResult> {
 		if (!this.modelReady()) {
-			throw new Error(
-				'SAM3 model not loaded. Call loadModel() first.',
-			);
+			throw new Error('SAM3 model not loaded. Call loadModel() first.');
 		}
 
 		try {
@@ -169,7 +167,11 @@ export class Sam3SegmentationService {
 			const mask = await this.runInference(preprocessed);
 
 			// Postprocess mask
-			const result = this.postprocessMask(mask, imageData.width, imageData.height);
+			const result = this.postprocessMask(
+				mask,
+				imageData.width,
+				imageData.height,
+			);
 
 			return result;
 		} catch (error) {
@@ -225,9 +227,10 @@ export class Sam3SegmentationService {
 	 * - ONNX Runtime Web: session.run(feeds)
 	 * - TensorFlow.js: model.predict(inputs)
 	 */
-	private async runInference(
-		preprocessed: { imageTensor: any; promptTensor: any },
-	): Promise<Uint8ClampedArray> {
+	private async runInference(preprocessed: {
+		imageTensor: any;
+		promptTensor: any;
+	}): Promise<Uint8ClampedArray> {
 		// Placeholder implementation
 		console.log('Running inference...');
 
