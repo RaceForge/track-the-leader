@@ -10,7 +10,11 @@ export class NotificationService {
 	notification = signal<Notification>(null);
 	private notificationTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	show(message: string, type: NotificationType = 'info', duration = 4000): void {
+	show(
+		message: string,
+		type: NotificationType = 'info',
+		duration = 4000,
+	): void {
 		if (this.notificationTimeout) {
 			clearTimeout(this.notificationTimeout);
 		}

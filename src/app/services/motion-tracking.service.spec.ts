@@ -20,7 +20,9 @@ const mockMat = {
 
 const mockCv = {
 	Mat: jasmine.createSpy('Mat').and.returnValue(mockMat),
-	matFromImageData: jasmine.createSpy('matFromImageData').and.returnValue(mockMat),
+	matFromImageData: jasmine
+		.createSpy('matFromImageData')
+		.and.returnValue(mockMat),
 	cvtColor: jasmine.createSpy('cvtColor'),
 	COLOR_RGBA2GRAY: 1,
 	Rect: jasmine.createSpy('Rect').and.returnValue({ width: 10, height: 10 }),

@@ -14,8 +14,8 @@ import { OverlayRendererService } from '../services/overlay-renderer.service';
 import { RaceStateService } from '../services/race-state.service';
 import { VideoFrameService } from '../services/video-frame.service';
 import {
-	CarSelectionComponent,
 	type CarSelection,
+	CarSelectionComponent,
 } from './components/car-selection/car-selection.component';
 import { TrackEditorComponent } from './components/track-editor/track-editor.component';
 import { VideoPlayerComponent } from './components/video-player/video-player.component';
@@ -30,7 +30,8 @@ import { VideoPlayerComponent } from './components/video-player/video-player.com
 export class RaceViewer implements OnDestroy {
 	@ViewChild('videoPlayer') videoPlayer!: VideoPlayerComponent;
 	@ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
-	@ViewChild(CarSelectionComponent) carSelectionComponent!: CarSelectionComponent;
+	@ViewChild(CarSelectionComponent)
+	carSelectionComponent!: CarSelectionComponent;
 	@ViewChild('trackEditor') trackEditor!: TrackEditorComponent;
 
 	// Configuration constants
@@ -72,7 +73,6 @@ export class RaceViewer implements OnDestroy {
 		});
 	}
 
-
 	onVideoLoadedMetadata() {
 		this.updateCanvasSize();
 	}
@@ -94,7 +94,6 @@ export class RaceViewer implements OnDestroy {
 	}
 
 	// Milestone 2: Track mapping controls - Delegated to TrackEditorComponent
-
 
 	onSelectionsChange(selections: CarSelection[]) {
 		this.state.manualSelections.set(selections);
@@ -157,7 +156,10 @@ export class RaceViewer implements OnDestroy {
 			video.videoHeight,
 		);
 
-		if (this.state.mode() === 'mapping' || this.state.mode() === 'start-finish') {
+		if (
+			this.state.mode() === 'mapping' ||
+			this.state.mode() === 'start-finish'
+		) {
 			this.trackEditor.handleCanvasClick({ x, y });
 		} else if (this.state.mode() === 'marking-cars') {
 			this.carSelectionComponent.handleCanvasClick({ x, y });
@@ -233,10 +235,11 @@ export class RaceViewer implements OnDestroy {
 		const imageData = this.videoFrameService.captureFrame(video);
 		if (imageData) {
 			const currentSelections = this.state.manualSelections();
-			const updatedSelections = this.motionTrackingService.updateTrackedPositions(
-				imageData,
-				currentSelections,
-			);
+			const updatedSelections =
+				this.motionTrackingService.updateTrackedPositions(
+					imageData,
+					currentSelections,
+				);
 			if (updatedSelections !== currentSelections) {
 				this.state.manualSelections.set(updatedSelections);
 			}

@@ -2,11 +2,11 @@ import {
 	ChangeDetectionStrategy,
 	Component,
 	ElementRef,
-	ViewChild,
 	inject,
 	model,
 	output,
 	signal,
+	ViewChild,
 } from '@angular/core';
 import { NotificationService } from '../../../services/notification.service';
 
@@ -52,7 +52,10 @@ export class VideoPlayerComponent {
 				const url = URL.createObjectURL(file);
 				this.videoSrc.set(url);
 			} else {
-				this.notificationService.show('Please drop an .mp4 or .mov file.', 'error');
+				this.notificationService.show(
+					'Please drop an .mp4 or .mov file.',
+					'error',
+				);
 			}
 		}
 	}

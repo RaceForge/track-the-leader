@@ -22,10 +22,7 @@ export class MotionTrackingService {
 	// id -> cv.Mat template (grayscale)
 	private trackingTemplates = new Map<number, CvMatLike>();
 
-	initializeTemplates(
-		frameData: ImageData,
-		selections: CarSelection[],
-	): void {
+	initializeTemplates(frameData: ImageData, selections: CarSelection[]): void {
 		this.clearTemplates();
 		if (typeof cv === 'undefined' || !cv?.Mat) {
 			console.warn('OpenCV not ready, cannot initialize templates');
@@ -171,7 +168,6 @@ export class MotionTrackingService {
 			frameGray.delete();
 
 			return updated;
-
 		} catch (err) {
 			console.error('Tracking update failed:', err);
 			return selections;
