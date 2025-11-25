@@ -51,6 +51,10 @@ export class RaceViewer implements OnDestroy {
 	private readonly DEFAULT_CAR_BOX_SIZE = 60;
 	private readonly DEFAULT_VIDEO_FPS = 30;
 
+	// Tracking configuration
+	trackingSearchMultiplier = 2.0;
+	trackingConfidenceThreshold = 0.7;
+
 	homographyService = inject(HomographyService);
 	proposalService = inject(ProposalGeneratorService);
 	sam3Service = inject(Sam3SegmentationService);
@@ -536,6 +540,15 @@ export class RaceViewer implements OnDestroy {
 
 		// Render stabilized track line + selections
 		this.renderStabilizedTrackLine();
+		
+		// Run tracking update if we have templates
+		if (this.trackingTemplates.size > 0) {
+			const imageData = this.captureFrameData();
+			if (imageData) {
+				this.updateTrackedPositions(imageData);
+			}
+		}
+
 		// Lightweight path: just redraw overlays so video can render smoothly
 		this.renderPolyline();
 	}
@@ -745,57 +758,57 @@ export class RaceViewer implements OnDestroy {
 		return maskCanvas;
 	}
 
-	// Tracking update logic kept for future use (currently unused to keep UI responsive)
-	// private updateTrackedPositions(imageData: ImageData): void {
-	// 	try {
-	// 		const frameMatRGBA = cv.matFromImageData(imageData);
-	// 		const frameGray = new cv.Mat();
-	// 		cv.cvtColor(frameMatRGBA, frameGray, cv.COLOR_RGBA2GRAY);
-	// 		const selections = this.manualSelections();
-	// 		const updated: typeof selections = [];
-	// 		for (const sel of selections) {
-	// 			const template = this.trackingTemplates.get(sel.id) as CvMatLike | undefined;
-	// 			if (!template) { updated.push(sel); continue; }
-	// 			const [, , bw, bh] = sel.bbox; // width & height only
-	// 			const searchW = Math.min(Math.round(bw * this.trackingSearchMultiplier), frameGray.cols);
-	// 			const searchH = Math.min(Math.round(bh * this.trackingSearchMultiplier), frameGray.rows);
-	// 			const cx = sel.center.x;
-	// 			const cy = sel.center.y;
-	// 			const x0 = Math.max(0, Math.round(cx - searchW / 2));
-	// 			const y0 = Math.max(0, Math.round(cy - searchH / 2));
-	// 			const x1 = Math.min(frameGray.cols, x0 + searchW);
-	// 			const y1 = Math.min(frameGray.rows, y0 + searchH);
-	// 			const actualW = x1 - x0;
-	// 			const actualH = y1 - y0;
-	// 			if (actualW < template.cols || actualH < template.rows) { updated.push(sel); continue; }
-	// 			const searchRect = new cv.Rect(x0, y0, actualW, actualH);
-	// 			const searchMat = frameGray.roi(searchRect);
-	// 			const resultCols = searchMat.cols - template.cols + 1;
-	// 			const resultRows = searchMat.rows - template.rows + 1;
-	// 			if (resultCols <= 0 || resultRows <= 0) { searchMat.delete(); updated.push(sel); continue; }
-	// 			const result = new cv.Mat(resultRows, resultCols, cv.CV_32FC1);
-	// 			cv.matchTemplate(searchMat, template, result, cv.TM_CCOEFF_NORMED);
-	// 			const mm = cv.minMaxLoc(result);
-	// 			const confidence = mm.maxVal;
-	// 			if (confidence < this.trackingConfidenceThreshold) {
-	// 				// Keep previous position if confidence too low
-	// 				result.delete(); searchMat.delete(); updated.push(sel); continue;
-	// 			}
-	// 			const newTopLeftX = x0 + mm.maxLoc.x;
-	// 			const newTopLeftY = y0 + mm.maxLoc.y;
-	// 			const newCenter: Point2D = { x: newTopLeftX + template.cols / 2, y: newTopLeftY + template.rows / 2 };
-	// 			const newBBox: [number, number, number, number] = [newTopLeftX, newTopLeftY, template.cols, template.rows];
-	// 			updated.push({ id: sel.id, center: newCenter, bbox: newBBox });
-	// 			result.delete(); searchMat.delete();
-	// 		}
-	// 		// Update selections signal
-	// 		this.manualSelections.set(updated);
-	// 		frameMatRGBA.delete();
-	// 		frameGray.delete();
-	// 	} catch (err) {
-	// 		console.error('Tracking update failed:', err);
-	// 	}
-	// }
+	// Tracking update logic
+	private updateTrackedPositions(imageData: ImageData): void {
+		try {
+			const frameMatRGBA = cv.matFromImageData(imageData);
+			const frameGray = new cv.Mat();
+			cv.cvtColor(frameMatRGBA, frameGray, cv.COLOR_RGBA2GRAY);
+			const selections = this.manualSelections();
+			const updated: typeof selections = [];
+			for (const sel of selections) {
+				const template = this.trackingTemplates.get(sel.id) as CvMatLike | undefined;
+				if (!template) { updated.push(sel); continue; }
+				const [, , bw, bh] = sel.bbox; // width & height only
+				const searchW = Math.min(Math.round(bw * this.trackingSearchMultiplier), frameGray.cols);
+				const searchH = Math.min(Math.round(bh * this.trackingSearchMultiplier), frameGray.rows);
+				const cx = sel.center.x;
+				const cy = sel.center.y;
+				const x0 = Math.max(0, Math.round(cx - searchW / 2));
+				const y0 = Math.max(0, Math.round(cy - searchH / 2));
+				const x1 = Math.min(frameGray.cols, x0 + searchW);
+				const y1 = Math.min(frameGray.rows, y0 + searchH);
+				const actualW = x1 - x0;
+				const actualH = y1 - y0;
+				if (actualW < template.cols || actualH < template.rows) { updated.push(sel); continue; }
+				const searchRect = new cv.Rect(x0, y0, actualW, actualH);
+				const searchMat = frameGray.roi(searchRect);
+				const resultCols = searchMat.cols - template.cols + 1;
+				const resultRows = searchMat.rows - template.rows + 1;
+				if (resultCols <= 0 || resultRows <= 0) { searchMat.delete(); updated.push(sel); continue; }
+				const result = new cv.Mat(resultRows, resultCols, cv.CV_32FC1);
+				cv.matchTemplate(searchMat, template, result, cv.TM_CCOEFF_NORMED);
+				const mm = cv.minMaxLoc(result);
+				const confidence = mm.maxVal;
+				if (confidence < this.trackingConfidenceThreshold) {
+					// Keep previous position if confidence too low
+					result.delete(); searchMat.delete(); updated.push(sel); continue;
+				}
+				const newTopLeftX = x0 + mm.maxLoc.x;
+				const newTopLeftY = y0 + mm.maxLoc.y;
+				const newCenter: Point2D = { x: newTopLeftX + template.cols / 2, y: newTopLeftY + template.rows / 2 };
+				const newBBox: [number, number, number, number] = [newTopLeftX, newTopLeftY, template.cols, template.rows];
+				updated.push({ id: sel.id, center: newCenter, bbox: newBBox });
+				result.delete(); searchMat.delete();
+			}
+			// Update selections signal
+			this.manualSelections.set(updated);
+			frameMatRGBA.delete();
+			frameGray.delete();
+		} catch (err) {
+			console.error('Tracking update failed:', err);
+		}
+	}
 
 	ngOnDestroy() {
 		this.stopRenderLoop();
