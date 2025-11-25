@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import * as ort from 'onnxruntime-web';
-import { type Point2D, type BBox } from '../types/geometry';
+import { type BBox, type Point2D } from '../types/geometry';
 
 export type { Point2D };
 
@@ -145,7 +145,9 @@ export class Sam3SegmentationService {
 			} catch (primaryError) {
 				// Fallback: retry with pure wasm if webgpu+wasm failed
 				if (executionProviders.includes('webgpu')) {
-					console.warn('Primary load with webgpu failed, retrying with wasm only');
+					console.warn(
+						'Primary load with webgpu failed, retrying with wasm only',
+					);
 					try {
 						executionProviders = ['wasm'];
 						this.model = await ort.InferenceSession.create(pathToUse, {
@@ -153,7 +155,9 @@ export class Sam3SegmentationService {
 							graphOptimizationLevel: 'all',
 						});
 					} catch (fallbackError) {
-						throw new Error(`Primary error: ${primaryError}; Fallback error: ${fallbackError}`);
+						throw new Error(
+							`Primary error: ${primaryError}; Fallback error: ${fallbackError}`,
+						);
 					}
 				} else {
 					throw primaryError;
@@ -162,7 +166,10 @@ export class Sam3SegmentationService {
 
 			this.imageInputName = this.model.inputNames[0] ?? null;
 			this.maskOutputName = this.model.outputNames[0] ?? null;
-			const metadata = this.model.inputMetadata as unknown as Record<string, OrtTensorMetadata | undefined>;
+			const metadata = this.model.inputMetadata as unknown as Record<
+				string,
+				OrtTensorMetadata | undefined
+			>;
 			if (this.imageInputName) {
 				const imageMeta = metadata[this.imageInputName];
 				this.imageInputShape = imageMeta?.dimensions ?? null;
@@ -171,9 +178,19 @@ export class Sam3SegmentationService {
 			}
 
 			this.modelReady.set(true);
-			const activeProvider = executionProviders.includes('webgpu') && this.webGpuAvailable() ? 'webgpu' : 'wasm';
-			console.log(`SAM2 encoder loaded successfully using ${activeProvider} provider`);
-			console.log('Model inputs:', this.model.inputNames, 'shape:', this.imageInputShape);
+			const activeProvider =
+				executionProviders.includes('webgpu') && this.webGpuAvailable()
+					? 'webgpu'
+					: 'wasm';
+			console.log(
+				`SAM2 encoder loaded successfully using ${activeProvider} provider`,
+			);
+			console.log(
+				'Model inputs:',
+				this.model.inputNames,
+				'shape:',
+				this.imageInputShape,
+			);
 			console.log('Model outputs:', this.model.outputNames);
 		} catch (error) {
 			const errorMessage = `Failed to load SAM2 encoder: ${error}`;
@@ -263,14 +280,23 @@ export class Sam3SegmentationService {
 
 		// SAM2 typically expects 1024x1024 or specific model dimensions
 		// Check imageInputShape for actual expected dimensions
-		const targetHeight = (this.imageInputShape?.[2] && typeof this.imageInputShape[2] === 'number' && this.imageInputShape[2] > 0)
-			? Number(this.imageInputShape[2])
-			: 1024;
-		const targetWidth = (this.imageInputShape?.[3] && typeof this.imageInputShape[3] === 'number' && this.imageInputShape[3] > 0)
-			? Number(this.imageInputShape[3])
-			: 1024;
+		const targetHeight =
+			this.imageInputShape?.[2] &&
+			typeof this.imageInputShape[2] === 'number' &&
+			this.imageInputShape[2] > 0
+				? Number(this.imageInputShape[2])
+				: 1024;
+		const targetWidth =
+			this.imageInputShape?.[3] &&
+			typeof this.imageInputShape[3] === 'number' &&
+			this.imageInputShape[3] > 0
+				? Number(this.imageInputShape[3])
+				: 1024;
 
-		console.log(`Preprocessing: target size ${targetWidth}x${targetHeight}, input shape:`, this.imageInputShape);
+		console.log(
+			`Preprocessing: target size ${targetWidth}x${targetHeight}, input shape:`,
+			this.imageInputShape,
+		);
 
 		const sourceCanvas = document.createElement('canvas');
 		sourceCanvas.width = imageData.width;
@@ -289,7 +315,12 @@ export class Sam3SegmentationService {
 			throw new Error('Failed to obtain resize canvas context');
 		}
 		resizeCtx.drawImage(sourceCanvas, 0, 0, targetWidth, targetHeight);
-		const resizedImage = resizeCtx.getImageData(0, 0, targetWidth, targetHeight);
+		const resizedImage = resizeCtx.getImageData(
+			0,
+			0,
+			targetWidth,
+			targetHeight,
+		);
 
 		const pixelCount = targetWidth * targetHeight;
 		const imageBuffer = new Float32Array(pixelCount * 3);
@@ -298,12 +329,17 @@ export class Sam3SegmentationService {
 		// Convert RGBA to RGB planar format [1, 3, H, W]
 		for (let i = 0; i < pixelCount; i++) {
 			const idx = i * 4;
-			imageBuffer[i] = resizedData[idx] / 255;                    // R channel
-			imageBuffer[i + pixelCount] = resizedData[idx + 1] / 255;   // G channel
+			imageBuffer[i] = resizedData[idx] / 255; // R channel
+			imageBuffer[i + pixelCount] = resizedData[idx + 1] / 255; // G channel
 			imageBuffer[i + pixelCount * 2] = resizedData[idx + 2] / 255; // B channel
 		}
 
-		const imageTensor = new ort.Tensor('float32', imageBuffer, [1, 3, targetHeight, targetWidth]);
+		const imageTensor = new ort.Tensor('float32', imageBuffer, [
+			1,
+			3,
+			targetHeight,
+			targetWidth,
+		]);
 		console.log('Created image tensor with shape:', imageTensor.dims);
 
 		// Prompt tensor - for encoder-only model this may not be used
@@ -319,7 +355,10 @@ export class Sam3SegmentationService {
 		} else {
 			promptArray.fill(-1, 2);
 		}
-		const promptTensor = new ort.Tensor('float32', promptArray, [1, promptArray.length]);
+		const promptTensor = new ort.Tensor('float32', promptArray, [
+			1,
+			promptArray.length,
+		]);
 
 		return {
 			imageTensor,
@@ -353,7 +392,12 @@ export class Sam3SegmentationService {
 			[this.imageInputName]: preprocessed.imageTensor,
 		};
 
-		console.log('Running inference with feeds:', Object.keys(feeds), 'input shape:', preprocessed.imageTensor.dims);
+		console.log(
+			'Running inference with feeds:',
+			Object.keys(feeds),
+			'input shape:',
+			preprocessed.imageTensor.dims,
+		);
 
 		const results = await this.model.run(feeds);
 		console.log('Inference results:', Object.keys(results));
@@ -363,7 +407,10 @@ export class Sam3SegmentationService {
 		// As a placeholder, we'll create a simple mask from the prompt box
 		const outputTensor = results[this.maskOutputName];
 		if (!outputTensor) {
-			console.warn(`Expected output "${this.maskOutputName}" not found. Available:`, Object.keys(results));
+			console.warn(
+				`Expected output "${this.maskOutputName}" not found. Available:`,
+				Object.keys(results),
+			);
 			// Return a simple box-based mask as fallback
 			return this.createBoxMask(preprocessed.width, preprocessed.height);
 		}
@@ -455,7 +502,7 @@ export class Sam3SegmentationService {
 			// TODO: Dispose model based on framework
 			// ONNX: this.model.release()
 			// TensorFlow.js: this.model.dispose()
-      this.model.release();
+			this.model.release();
 			this.model = null;
 		}
 		this.modelReady.set(false);

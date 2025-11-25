@@ -49,7 +49,7 @@ export class RaceViewer implements OnDestroy {
 
 	// Configuration constants
 	private readonly DEFAULT_CAR_BOX_SIZE = 60;
-	private readonly DEFAULT_VIDEO_FPS = 30;
+	// private readonly DEFAULT_VIDEO_FPS = 30;
 
 	// Tracking configuration
 	trackingSearchMultiplier = 2.0;
@@ -131,7 +131,11 @@ export class RaceViewer implements OnDestroy {
 	}
 
 	// Notification helper methods
-	private showNotification(message: string, type: NotificationType = 'info', duration = 4000): void {
+	private showNotification(
+		message: string,
+		type: NotificationType = 'info',
+		duration = 4000,
+	): void {
 		// Clear any existing notification timeout
 		if (this.notificationTimeout) {
 			clearTimeout(this.notificationTimeout);
@@ -540,7 +544,7 @@ export class RaceViewer implements OnDestroy {
 
 		// Render stabilized track line + selections
 		this.renderStabilizedTrackLine();
-		
+
 		// Run tracking update if we have templates
 		if (this.trackingTemplates.size > 0) {
 			const imageData = this.captureFrameData();
@@ -708,7 +712,10 @@ export class RaceViewer implements OnDestroy {
 					point: selection.center,
 					box: selection.bbox,
 				};
-				const result = await this.sam3Service.runSegmentation(frameData, prompt);
+				const result = await this.sam3Service.runSegmentation(
+					frameData,
+					prompt,
+				);
 
 				// Create visual overlay from mask, but keep original selection unchanged
 				const overlay = this.createMaskOverlay(result);
@@ -767,11 +774,22 @@ export class RaceViewer implements OnDestroy {
 			const selections = this.manualSelections();
 			const updated: typeof selections = [];
 			for (const sel of selections) {
-				const template = this.trackingTemplates.get(sel.id) as CvMatLike | undefined;
-				if (!template) { updated.push(sel); continue; }
+				const template = this.trackingTemplates.get(sel.id) as
+					| CvMatLike
+					| undefined;
+				if (!template) {
+					updated.push(sel);
+					continue;
+				}
 				const [, , bw, bh] = sel.bbox; // width & height only
-				const searchW = Math.min(Math.round(bw * this.trackingSearchMultiplier), frameGray.cols);
-				const searchH = Math.min(Math.round(bh * this.trackingSearchMultiplier), frameGray.rows);
+				const searchW = Math.min(
+					Math.round(bw * this.trackingSearchMultiplier),
+					frameGray.cols,
+				);
+				const searchH = Math.min(
+					Math.round(bh * this.trackingSearchMultiplier),
+					frameGray.rows,
+				);
 				const cx = sel.center.x;
 				const cy = sel.center.y;
 				const x0 = Math.max(0, Math.round(cx - searchW / 2));
@@ -780,26 +798,45 @@ export class RaceViewer implements OnDestroy {
 				const y1 = Math.min(frameGray.rows, y0 + searchH);
 				const actualW = x1 - x0;
 				const actualH = y1 - y0;
-				if (actualW < template.cols || actualH < template.rows) { updated.push(sel); continue; }
+				if (actualW < template.cols || actualH < template.rows) {
+					updated.push(sel);
+					continue;
+				}
 				const searchRect = new cv.Rect(x0, y0, actualW, actualH);
 				const searchMat = frameGray.roi(searchRect);
 				const resultCols = searchMat.cols - template.cols + 1;
 				const resultRows = searchMat.rows - template.rows + 1;
-				if (resultCols <= 0 || resultRows <= 0) { searchMat.delete(); updated.push(sel); continue; }
+				if (resultCols <= 0 || resultRows <= 0) {
+					searchMat.delete();
+					updated.push(sel);
+					continue;
+				}
 				const result = new cv.Mat(resultRows, resultCols, cv.CV_32FC1);
 				cv.matchTemplate(searchMat, template, result, cv.TM_CCOEFF_NORMED);
 				const mm = cv.minMaxLoc(result);
 				const confidence = mm.maxVal;
 				if (confidence < this.trackingConfidenceThreshold) {
 					// Keep previous position if confidence too low
-					result.delete(); searchMat.delete(); updated.push(sel); continue;
+					result.delete();
+					searchMat.delete();
+					updated.push(sel);
+					continue;
 				}
 				const newTopLeftX = x0 + mm.maxLoc.x;
 				const newTopLeftY = y0 + mm.maxLoc.y;
-				const newCenter: Point2D = { x: newTopLeftX + template.cols / 2, y: newTopLeftY + template.rows / 2 };
-				const newBBox: [number, number, number, number] = [newTopLeftX, newTopLeftY, template.cols, template.rows];
+				const newCenter: Point2D = {
+					x: newTopLeftX + template.cols / 2,
+					y: newTopLeftY + template.rows / 2,
+				};
+				const newBBox: [number, number, number, number] = [
+					newTopLeftX,
+					newTopLeftY,
+					template.cols,
+					template.rows,
+				];
 				updated.push({ id: sel.id, center: newCenter, bbox: newBBox });
-				result.delete(); searchMat.delete();
+				result.delete();
+				searchMat.delete();
 			}
 			// Update selections signal
 			this.manualSelections.set(updated);

@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { type Point2D, type BBox } from '../types/geometry';
+import { type BBox, type Point2D } from '../types/geometry';
 
 export type { Point2D };
 

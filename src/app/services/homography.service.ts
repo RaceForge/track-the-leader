@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { type Point2D, type Homography } from '../types/geometry';
+import { type Homography, type Point2D } from '../types/geometry';
 
 export type { Point2D, Homography };
 
