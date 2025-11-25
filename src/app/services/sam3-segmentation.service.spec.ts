@@ -20,7 +20,7 @@ describe('Sam3SegmentationService', () => {
 	});
 
 	it('should have default model path', () => {
-		expect(service.modelPath()).toBe('/assets/sam3.onnx');
+		expect(service.modelPath()).toBe('/assets/sam2_tiny_image_encoder.onnx');
 	});
 
 	it('should allow updating model path', () => {
