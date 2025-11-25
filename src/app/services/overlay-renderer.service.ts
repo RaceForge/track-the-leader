@@ -49,32 +49,20 @@ export class OverlayRendererService {
 		ctx: CanvasRenderingContext2D,
 		selections: CarSelection[],
 		overlays: Map<number, HTMLCanvasElement>,
-		canvasWidth: number,
-		canvasHeight: number,
 	): void {
-		// Draw segmentation overlays
-		if (overlays.size > 0) {
-			ctx.save();
-			ctx.globalAlpha = 0.35;
-			for (const overlay of overlays.values()) {
-				ctx.drawImage(
-					overlay,
-					0,
-					0,
-					overlay.width,
-					overlay.height,
-					0,
-					0,
-					canvasWidth,
-					canvasHeight,
-				);
-			}
-			ctx.restore();
-		}
-
-		// Draw bounding boxes and labels
+		// Draw bounding boxes, labels, and overlays
 		for (const selection of selections) {
 			const [x, y, width, height] = selection.bbox;
+
+			// Draw segmentation overlay if exists
+			const overlay = overlays.get(selection.id);
+			if (overlay) {
+				ctx.save();
+				ctx.globalAlpha = 0.35;
+				// Draw overlay scaled to current bbox
+				ctx.drawImage(overlay, x, y, width, height);
+				ctx.restore();
+			}
 
 			// Draw bounding box
 			ctx.strokeStyle = '#00ff00'; // Green
@@ -105,6 +93,6 @@ export class OverlayRendererService {
 	): void {
 		this.clearCanvas(ctx, width, height);
 		this.renderTrackLine(ctx, trackLine, startIndex);
-		this.renderSelections(ctx, selections, overlays, width, height);
+		this.renderSelections(ctx, selections, overlays);
 	}
 }

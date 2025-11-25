@@ -34,6 +34,7 @@ const mockCv = {
 	TM_CCOEFF_NORMED: 1,
 };
 
+// biome-ignore lint/suspicious/noExplicitAny: OpenCV global provided via script tag
 (window as any).cv = mockCv;
 
 describe('MotionTrackingService', () => {

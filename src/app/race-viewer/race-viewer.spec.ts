@@ -56,7 +56,7 @@ describe('RaceViewer', () => {
 	});
 
 	it('should render sidebar controls as disabled', () => {
-		component.videoSrc.set('blob:test');
+		component.state.videoSrc.set('blob:test');
 		fixture.detectChanges();
 		const compiled = fixture.nativeElement as HTMLElement;
 		const checkboxes = compiled.querySelectorAll(
@@ -70,7 +70,7 @@ describe('RaceViewer', () => {
 	// Milestone 2: Track mapping tests
 	describe('Track Mapping', () => {
 		beforeEach(() => {
-			component.videoSrc.set('blob:test');
+			component.state.videoSrc.set('blob:test');
 			fixture.detectChanges();
 		});
 
@@ -78,11 +78,11 @@ describe('RaceViewer', () => {
 			const button = fixture.nativeElement.querySelector('button');
 			button?.click();
 			fixture.detectChanges();
-			expect(component.mode()).toBe('mapping');
+			expect(component.state.mode()).toBe('mapping');
 		});
 
 		it('should add points to trackLine when canvas is clicked in mapping mode', () => {
-			component.mode.set('mapping');
+			component.state.mode.set('mapping');
 			fixture.detectChanges();
 			const canvas = fixture.nativeElement.querySelector('canvas');
 			const clickEvent = new MouseEvent('click', {
@@ -91,12 +91,12 @@ describe('RaceViewer', () => {
 			});
 			canvas?.dispatchEvent(clickEvent);
 			fixture.detectChanges();
-			expect(component.trackLine().length).toBe(1);
+			expect(component.state.trackLine().length).toBe(1);
 		});
 
 		it('should undo the last point when "Undo" is clicked', () => {
-			component.mode.set('mapping');
-			component.trackLine.set([
+			component.state.mode.set('mapping');
+			component.state.trackLine.set([
 				{ x: 10, y: 10 },
 				{ x: 20, y: 20 },
 			]);
@@ -106,12 +106,12 @@ describe('RaceViewer', () => {
 			).find((btn) => btn.textContent?.includes('Undo'));
 			undoButton?.click();
 			fixture.detectChanges();
-			expect(component.trackLine().length).toBe(1);
+			expect(component.state.trackLine().length).toBe(1);
 		});
 
 		it('should reset the trackLine when "Reset" is clicked', () => {
-			component.mode.set('mapping');
-			component.trackLine.set([
+			component.state.mode.set('mapping');
+			component.state.trackLine.set([
 				{ x: 10, y: 10 },
 				{ x: 20, y: 20 },
 			]);
@@ -121,12 +121,12 @@ describe('RaceViewer', () => {
 			).find((btn) => btn.textContent?.includes('Reset'));
 			resetButton?.click();
 			fixture.detectChanges();
-			expect(component.trackLine().length).toBe(0);
+			expect(component.state.trackLine().length).toBe(0);
 		});
 
 		it('should enable "Finish" button when trackLine has more than 4 points', () => {
-			component.mode.set('mapping');
-			component.trackLine.set([
+			component.state.mode.set('mapping');
+			component.state.trackLine.set([
 				{ x: 10, y: 10 },
 				{ x: 20, y: 20 },
 				{ x: 30, y: 30 },
@@ -141,8 +141,8 @@ describe('RaceViewer', () => {
 		});
 
 		it('should transition to start/finish mode when "Finish" is clicked with enough points', () => {
-			component.mode.set('mapping');
-			component.trackLine.set([
+			component.state.mode.set('mapping');
+			component.state.trackLine.set([
 				{ x: 10, y: 10 },
 				{ x: 20, y: 20 },
 				{ x: 30, y: 30 },
@@ -155,13 +155,13 @@ describe('RaceViewer', () => {
 			).find((btn) => btn.textContent?.includes('Finish'));
 			finishButton?.click();
 			fixture.detectChanges();
-			expect(component.mode()).toBe('start-finish');
+			expect(component.state.mode()).toBe('start-finish');
 		});
 
 		it('should select start/finish point when canvas is clicked in start/finish mode', () => {
-			component.mode.set('start-finish');
+			component.state.mode.set('start-finish');
 			component.trackEditor.mode.set('start-finish');
-			component.trackLine.set([
+			component.state.trackLine.set([
 				{ x: 100, y: 100 },
 				{ x: 200, y: 200 },
 				{ x: 300, y: 300 },
@@ -174,24 +174,24 @@ describe('RaceViewer', () => {
 			});
 			canvas?.dispatchEvent(clickEvent);
 			fixture.detectChanges();
-			expect(component.startIndex()).not.toBeNull();
+			expect(component.state.startIndex()).not.toBeNull();
 		});
 
 		it('should confirm start/finish point and exit mode when "Confirm Start/Finish" is clicked', () => {
-			component.mode.set('start-finish');
+			component.state.mode.set('start-finish');
 			component.trackEditor.mode.set('start-finish');
-			component.trackLine.set([
+			component.state.trackLine.set([
 				{ x: 10, y: 10 },
 				{ x: 20, y: 20 },
 			]);
-			component.startIndex.set(0);
+			component.state.startIndex.set(0);
 			fixture.detectChanges();
 			const confirmButton = Array.from<HTMLButtonElement>(
 				fixture.nativeElement.querySelectorAll('button'),
 			).find((btn) => btn.textContent?.includes('Confirm Start/Finish'));
 			confirmButton?.click();
 			fixture.detectChanges();
-			expect(component.mode()).toBe('locked');
+			expect(component.state.mode()).toBe('locked');
 		});
 	});
 });

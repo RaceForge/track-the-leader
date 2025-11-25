@@ -137,7 +137,12 @@ export class MotionTrackingService {
 				const mm = cv.minMaxLoc(result);
 				const confidence = mm.maxVal;
 
+				// console.log(`Tracking car ${sel.id}: confidence=${confidence.toFixed(4)}`);
+
 				if (confidence < this.trackingConfidenceThreshold) {
+					console.warn(
+						`Tracking lost for car ${sel.id} (conf: ${confidence.toFixed(4)})`,
+					);
 					// Keep previous position if confidence too low
 					result.delete();
 					searchMat.delete();

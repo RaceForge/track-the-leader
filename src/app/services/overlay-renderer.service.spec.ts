@@ -64,7 +64,7 @@ describe('OverlayRendererService', () => {
 			},
 		];
 		const overlays = new Map<number, HTMLCanvasElement>();
-		service.renderSelections(ctx, selections, overlays, 100, 100);
+		service.renderSelections(ctx, selections, overlays);
 		expect(ctx.strokeRect).toHaveBeenCalled();
 		expect(ctx.fillText).toHaveBeenCalled();
 	});
