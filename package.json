@@ -8,6 +8,7 @@
 		"build": "ng build",
 		"watch": "ng build --watch --configuration development",
 		"test": "ng test",
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadless",
 		"serve:ssr:track-the-leader": "node dist/track-the-leader/server/server.mjs",
 		"deploy": "pnpm run build && wrangler deploy",
 		"cf-typegen": "wrangler types",

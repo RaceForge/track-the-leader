@@ -1,0 +1,22 @@
+@if (!videoSrc()) {
+<div
+	class="dropzone"
+	[class.dragging]="isDragging()"
+	(dragover)="onDragOver($event)"
+	(dragleave)="onDragLeave($event)"
+	(drop)="onDrop($event)"
+>
+	<div class="dropzone-content">
+		<h1>Track-The-Leader</h1>
+		<p>Drag and drop a video file (.mp4, .mov) to start</p>
+	</div>
+</div>
+} @else {
+<video
+	#videoPlayer
+	[src]="videoSrc()"
+	autoplay
+	controls
+	(loadedmetadata)="onVideoLoadedMetadata()"
+></video>
+}

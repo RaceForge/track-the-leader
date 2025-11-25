@@ -1,0 +1,35 @@
+<div class="sidebar-section">
+	<h3>Car Detection</h3>
+	@if (canMark() && !isActive()) {
+		<div class="controls-group">
+			<button (click)="onMarkCars()">Mark Cars</button>
+		</div>
+	}
+	@if (isActive()) {
+		<div class="controls-group">
+			<button (click)="onConfirmCarSelection()" [disabled]="!hasSelections()">Confirm Selection</button>
+			<button (click)="onCancelCarMarking()">Cancel</button>
+		</div>
+		<div class="status-text">
+			Selected: {{ manualSelections().length }} cars<br>
+			Click to add, click box to remove
+		</div>
+	}
+	@if (hasSelections() && !isActive()) {
+		<div class="status-text success">✓ {{ manualSelections().length }} cars selected</div>
+		<div class="controls-group">
+			<button (click)="onRunSamSegmentation()" [disabled]="segmentationInProgress()">
+				Run SAM3 Segmentation
+			</button>
+		</div>
+		@if (segmentationInProgress()) {
+			<div class="status-text">Running SAM3 segmentation...</div>
+		}
+		@if (segmentationError()) {
+			<div class="status-text error">{{ segmentationError() }}</div>
+		}
+		@if (!segmentationInProgress() && segmentationOverlays().size > 0) {
+			<div class="status-text success">✓ SAM3 masks ready</div>
+		}
+	}
+</div>
