@@ -1,6 +1,6 @@
-import { Injectable, signal, computed } from '@angular/core';
-import { type Point2D } from '../types/geometry';
+import { computed, Injectable, signal } from '@angular/core';
 import { type CarSelection } from '../race-viewer/components/car-selection/car-selection.component';
+import { type Point2D } from '../types/geometry';
 
 export type ViewMode =
 	| 'normal'

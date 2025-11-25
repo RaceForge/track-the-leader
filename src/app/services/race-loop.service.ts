@@ -17,10 +17,7 @@ export class RaceLoopService {
 
 	private animationFrameId: number | null = null;
 
-	start(
-		video: HTMLVideoElement,
-		canvas: HTMLCanvasElement,
-	) {
+	start(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
 		if (this.animationFrameId !== null) return;
 
 		const render = () => {
@@ -50,10 +47,11 @@ export class RaceLoopService {
 		const imageData = this.videoFrameService.captureFrame(video);
 		if (imageData) {
 			const currentSelections = this.state.manualSelections();
-			const updatedSelections = this.motionTrackingService.updateTrackedPositions(
-				imageData,
-				currentSelections,
-			);
+			const updatedSelections =
+				this.motionTrackingService.updateTrackedPositions(
+					imageData,
+					currentSelections,
+				);
 			if (updatedSelections !== currentSelections) {
 				this.state.manualSelections.set(updatedSelections);
 			}

@@ -17,11 +17,10 @@ describe('RaceViewer', () => {
 			'updateTrackedPositions',
 		]);
 
-		mockOverlayRendererService = jasmine.createSpyObj('OverlayRendererService', [
-			'clearCanvas',
-			'renderTrackLine',
-			'renderSelections',
-		]);
+		mockOverlayRendererService = jasmine.createSpyObj(
+			'OverlayRendererService',
+			['clearCanvas', 'renderTrackLine', 'renderSelections'],
+		);
 
 		await TestBed.configureTestingModule({
 			imports: [RaceViewer],

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CarSelectionComponent } from './car-selection.component';
 import { Sam3SegmentationService } from '../../../services/sam3-segmentation.service';
+import { CarSelectionComponent } from './car-selection.component';
 
 describe('CarSelectionComponent', () => {
 	let component: CarSelectionComponent;

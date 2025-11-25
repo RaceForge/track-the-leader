@@ -188,7 +188,6 @@ export class CarSelectionComponent {
 
 			this.segmentationOverlays.set(overlays);
 			this.emitChanges();
-
 		} catch (error) {
 			const message =
 				error instanceof Error ? error.message : 'Segmentation failed';
