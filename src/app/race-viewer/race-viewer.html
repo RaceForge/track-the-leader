@@ -12,6 +12,12 @@
 	</div>
 </div>
 } @else {
+@if (notification()) {
+<div class="notification" [class]="'notification-' + notification()!.type" (click)="dismissNotification()">
+	<span class="notification-message">{{ notification()!.message }}</span>
+	<button class="notification-close" type="button" aria-label="Dismiss notification">×</button>
+</div>
+}
 @if (isSelectingStartFinish()) {
 <div class="mode-overlay">
 	<div class="mode-message">Click Start/Finish line on the track</div>

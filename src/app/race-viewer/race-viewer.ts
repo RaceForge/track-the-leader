@@ -33,6 +33,9 @@ type ViewMode =
 	| 'locked'
 	| 'marking-cars';
 
+type NotificationType = 'info' | 'error' | 'success';
+type Notification = { message: string; type: NotificationType } | null;
+
 @Component({
 	selector: 'app-race-viewer',
 	imports: [],
@@ -44,13 +47,24 @@ export class RaceViewer implements OnDestroy {
 	@ViewChild('videoPlayer') videoPlayer!: ElementRef<HTMLVideoElement>;
 	@ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
 
+	// Configuration constants
+	private readonly DEFAULT_CAR_BOX_SIZE = 60;
+	private readonly DEFAULT_VIDEO_FPS = 30;
+
 	homographyService = inject(HomographyService);
 	proposalService = inject(ProposalGeneratorService);
 	sam3Service = inject(Sam3SegmentationService);
 	private animationFrameId: number | null = null;
+	private notificationTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	videoSrc = signal<string | null>(null);
 	isDragging = signal(false);
+
+	// User notification system (replaces alert())
+	notification = signal<Notification>(null);
+
+	// Configurable video FPS (can be detected from video metadata)
+	videoFps = signal(30);
 
 	// Milestone 2: Track mapping state
 	mode = signal<ViewMode>('normal');
@@ -112,6 +126,30 @@ export class RaceViewer implements OnDestroy {
 		});
 	}
 
+	// Notification helper methods
+	private showNotification(message: string, type: NotificationType = 'info', duration = 4000): void {
+		// Clear any existing notification timeout
+		if (this.notificationTimeout) {
+			clearTimeout(this.notificationTimeout);
+		}
+
+		this.notification.set({ message, type });
+
+		// Auto-dismiss after duration
+		this.notificationTimeout = setTimeout(() => {
+			this.notification.set(null);
+			this.notificationTimeout = null;
+		}, duration);
+	}
+
+	dismissNotification(): void {
+		if (this.notificationTimeout) {
+			clearTimeout(this.notificationTimeout);
+			this.notificationTimeout = null;
+		}
+		this.notification.set(null);
+	}
+
 	onDragOver(event: DragEvent) {
 		event.preventDefault();
 		event.stopPropagation();
@@ -148,7 +186,7 @@ export class RaceViewer implements OnDestroy {
 				this.manualSelections.set([]);
 				this.clearSegmentationResults();
 			} else {
-				alert('Please drop an .mp4 or .mov file.');
+				this.showNotification('Please drop an .mp4 or .mov file.', 'error');
 			}
 		}
 	}
@@ -240,7 +278,7 @@ export class RaceViewer implements OnDestroy {
 
 	onConfirmCarSelection() {
 		if (this.manualSelections().length === 0) {
-			alert('Please select at least one RC car');
+			this.showNotification('Please select at least one RC car', 'error');
 			return;
 		}
 		console.log('Selected cars:', this.manualSelections());
@@ -294,7 +332,7 @@ export class RaceViewer implements OnDestroy {
 				);
 			} else {
 				// Add new car selection at this point
-				const boxSize = 60; // Default box size
+				const boxSize = this.DEFAULT_CAR_BOX_SIZE;
 				const newSelection = {
 					id: this.nextCarId++,
 					center: { x, y },
@@ -491,8 +529,8 @@ export class RaceViewer implements OnDestroy {
 		const video = this.videoPlayer.nativeElement;
 		if (video.paused || video.ended) return;
 
-		// Estimate current frame index
-		const fps = 30; // Assume 30 fps for now
+		// Estimate current frame index using configurable FPS
+		const fps = this.videoFps();
 		const frameIndex = Math.floor(video.currentTime * fps);
 		this.homographyService.currentFrameIndex.set(frameIndex);
 
