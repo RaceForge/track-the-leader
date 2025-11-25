@@ -1,0 +1,28 @@
+<div class="sidebar-section">
+	<h3>Track Mapping</h3>
+	@if (!isActive()) {
+		<div class="controls-group">
+			<button (click)="onStart()">Select Track Line</button>
+		</div>
+		@if (trackLine().length > 0) {
+			<div class="status-text success">✓ Track locked</div>
+		}
+	} @else {
+		@if (mode() === 'mapping') {
+			<div class="controls-group">
+				<button (click)="onUndo()" [disabled]="trackLine().length === 0">Undo</button>
+				<button (click)="onReset()" [disabled]="trackLine().length === 0">Reset</button>
+				<button (click)="onFinishMapping()" [disabled]="!canFinishMapping()">Finish</button>
+			</div>
+			<div class="status-text">
+				Points: {{ trackLine().length }} @if (!canFinishMapping()) { (need 5+) }
+			</div>
+		}
+		@if (mode() === 'start-finish') {
+			<div class="controls-group">
+				<button (click)="onConfirmStartFinish()" [disabled]="startIndex() === null">Confirm Start/Finish</button>
+				<button (click)="onReset()">Reset</button>
+			</div>
+		}
+	}
+</div>

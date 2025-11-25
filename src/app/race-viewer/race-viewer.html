@@ -1,50 +1,37 @@
-@if (!videoSrc()) {
-<div
-	class="dropzone"
-	[class.dragging]="isDragging()"
-	(dragover)="onDragOver($event)"
-	(dragleave)="onDragLeave($event)"
-	(drop)="onDrop($event)"
->
-	<div class="dropzone-content">
-		<h1>Track-The-Leader</h1>
-		<p>Drag and drop a video file (.mp4, .mov) to start</p>
-	</div>
-</div>
-} @else {
-@if (notification()) {
-<div class="notification" [class]="'notification-' + notification()!.type" (click)="dismissNotification()">
-	<span class="notification-message">{{ notification()!.message }}</span>
+@if (notificationService.notification()) {
+<div class="notification" [class]="'notification-' + notificationService.notification()!.type" (click)="notificationService.dismiss()">
+	<span class="notification-message">{{ notificationService.notification()!.message }}</span>
 	<button class="notification-close" type="button" aria-label="Dismiss notification">×</button>
 </div>
 }
-@if (isSelectingStartFinish()) {
+@if (state.isSelectingStartFinish()) {
 <div class="mode-overlay">
 	<div class="mode-message">Click Start/Finish line on the track</div>
 </div>
 }
-@if (isMarkingCars()) {
+@if (state.isMarkingCars()) {
 <div class="mode-overlay">
-		<div class="mode-message">Click on RC cars to mark them ({{ manualSelections().length }} selected)</div>
+		<div class="mode-message">Click on RC cars to mark them ({{ state.manualSelections().length }} selected)</div>
 </div>
 }
 <div class="viewer-container">
-	<div class="video-area" [class.mapping]="isMapping()" [class.selecting]="isSelectingStartFinish()">
+	<div class="video-area" [class.full-width]="!state.videoSrc()" [class.mapping]="state.isMapping()" [class.selecting]="state.isSelectingStartFinish()">
 		<div class="video-wrapper">
-			<video
+			<app-video-player
 				#videoPlayer
-				[src]="videoSrc()"
-				autoplay
-				[attr.controls]="mode() === 'normal' || mode() === 'locked' ? true : null"
-				(loadedmetadata)="onVideoLoadedMetadata()"
-			></video>
+				[(videoSrc)]="state.videoSrc"
+				(videoLoaded)="onVideoLoadedMetadata()"
+			></app-video-player>
+			@if (state.videoSrc()) {
 			<canvas
 				#overlayCanvas
 				(click)="onCanvasClick($event)"
-				[class.interactive]="isMapping() || isSelectingStartFinish() || isMarkingCars()"
+				[class.interactive]="state.isMapping() || state.isSelectingStartFinish() || state.isMarkingCars()"
 			></canvas>
+			}
 		</div>
 	</div>
+	@if (state.videoSrc()) {
 	<div class="sidebar">
 		<div class="sidebar-header">
 			<h2>Leaderboard</h2>
@@ -56,73 +43,35 @@
 		</div>
 
 		<div class="sidebar-section">
-			<h3>Track Mapping</h3>
-			@if (mode() === 'normal') {
-				<div class="controls-group">
-					<button (click)="onSelectTrackLine()">Select Track Line</button>
-				</div>
-			}
-			@if (mode() === 'mapping') {
-				<div class="controls-group">
-					<button (click)="onUndo()" [disabled]="trackLine().length === 0">Undo</button>
-					<button (click)="onReset()" [disabled]="trackLine().length === 0">Reset</button>
-					<button (click)="onFinish()" [disabled]="!canFinishMapping()">Finish</button>
-				</div>
-				<div class="status-text">
-					Points: {{ trackLine().length }} @if (!canFinishMapping()) { (need 5+) }
-				</div>
-			}
-			@if (mode() === 'start-finish') {
-				<div class="controls-group">
-					<button (click)="onConfirmStartFinish()" [disabled]="startIndex() === null">Confirm Start/Finish</button>
-					<button (click)="onReset()">Reset</button>
-				</div>
-			}
-			@if (mode() === 'locked') {
-				<div class="status-text success">✓ Track locked</div>
-			}
+			<app-track-editor
+				#trackEditor
+				[isActive]="state.mode() === 'mapping' || state.mode() === 'start-finish'"
+				[(trackLine)]="state.trackLine"
+				[(startIndex)]="state.startIndex"
+				(start)="onTrackEditorStart()"
+				(modeChange)="onTrackEditorModeChange($event)"
+				(completed)="onTrackEditorCompleted()"
+				(cancelled)="onTrackEditorCancelled()"
+			></app-track-editor>
 		</div>
 
 		<div class="sidebar-section">
-			<h3>Car Detection</h3>
-			@if (mode() === 'locked' && !isMarkingCars()) {
-				<div class="controls-group">
-					<button (click)="onMarkCars()" [disabled]="!canMarkCars()">Mark Cars</button>
-				</div>
-			}
-			@if (isMarkingCars()) {
-				<div class="controls-group">
-					<button (click)="onConfirmCarSelection()" [disabled]="manualSelections().length === 0">Confirm Selection</button>
-					<button (click)="onCancelCarMarking()">Cancel</button>
-				</div>
-				<div class="status-text">
-					Selected: {{ manualSelections().length }} cars<br>
-					Click to add, click box to remove
-				</div>
-			}
-			@if (manualSelections().length > 0 && !isMarkingCars()) {
-				<div class="status-text success">✓ {{ manualSelections().length }} cars selected</div>
-				<div class="controls-group">
-					<button (click)="onRunSamSegmentation()" [disabled]="segmentationInProgress()">
-						Run SAM3 Segmentation
-					</button>
-				</div>
-				@if (segmentationInProgress()) {
-					<div class="status-text">Running SAM3 segmentation...</div>
-				}
-				@if (segmentationError()) {
-					<div class="status-text error">{{ segmentationError() }}</div>
-				}
-				@if (!segmentationInProgress() && segmentationOverlays().size > 0) {
-					<div class="status-text success">✓ SAM3 masks ready</div>
-				}
-			}
+			<app-car-selection
+				[isActive]="state.isMarkingCars()"
+				[canMark]="state.canMarkCars()"
+				[frameData]="state.currentFrameData()"
+				(selectionsChange)="onSelectionsChange($event)"
+				(overlaysChange)="onOverlaysChange($event)"
+				(confirm)="onConfirmCarSelection()"
+				(cancel)="onCancelCarMarking()"
+				(modeChange)="onCarSelectionModeChange($event)"
+			></app-car-selection>
 		</div>
 
 		<div class="sidebar-section">
 			<h3>Tracking Controls</h3>
 			<div class="controls-group">
-				<button (click)="onStartTracking()" [disabled]="!canStartTracking()">Start Tracking</button>
+				<button (click)="onStartTracking()" [disabled]="!state.canStartTracking()">Start Tracking</button>
 			</div>
 			<div class="toggles-group">
 				<label> <input type="checkbox" disabled /> Boxes </label>
@@ -132,12 +81,12 @@
 						type="checkbox"
 						[checked]="homographyService.debugMode()"
 						(change)="onToggleDebugMode($event)"
-						[disabled]="mode() !== 'locked'"
+						[disabled]="state.mode() !== 'locked'"
 					/>
 					Stabilized Track Line
 				</label>
 			</div>
 		</div>
 	</div>
+	}
 </div>
-}

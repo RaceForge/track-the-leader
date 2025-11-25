@@ -8,27 +8,6 @@
 	font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-.dropzone {
-	height: 100%;
-	width: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border: 2px dashed #444;
-	transition:
-		background-color 0.2s,
-		border-color 0.2s;
-}
-
-.dropzone.dragging {
-	background-color: rgba(255, 255, 255, 0.1);
-	border-color: #fff;
-}
-
-.dropzone-content {
-	text-align: center;
-}
-
 .viewer-container {
 	display: flex;
 	height: 100%;
@@ -45,6 +24,10 @@
 	position: relative;
 }
 
+.video-area.full-width {
+	width: 100%;
+}
+
 .video-wrapper {
 	display: grid;
 	grid-template-areas: 'stack';
@@ -54,7 +37,7 @@
 	align-items: center;
 }
 
-video,
+app-video-player,
 canvas {
 	grid-area: stack;
 	max-width: 100%;
@@ -62,7 +45,7 @@ canvas {
 	display: block;
 }
 
-video {
+app-video-player {
 	z-index: 1;
 }
 

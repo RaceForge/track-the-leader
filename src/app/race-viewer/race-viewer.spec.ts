@@ -1,15 +1,46 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { MotionTrackingService } from '../services/motion-tracking.service';
+import { OverlayRendererService } from '../services/overlay-renderer.service';
 
 import { RaceViewer } from './race-viewer';
 
 describe('RaceViewer', () => {
 	let component: RaceViewer;
 	let fixture: ComponentFixture<RaceViewer>;
+	let mockMotionTrackingService: jasmine.SpyObj<MotionTrackingService>;
+	let mockOverlayRendererService: jasmine.SpyObj<OverlayRendererService>;
 
 	beforeEach(async () => {
+		mockMotionTrackingService = jasmine.createSpyObj('MotionTrackingService', [
+			'initializeTemplates',
+			'clearTemplates',
+			'updateTrackedPositions',
+		]);
+
+		mockOverlayRendererService = jasmine.createSpyObj('OverlayRendererService', [
+			'clearCanvas',
+			'renderTrackLine',
+			'renderSelections',
+		]);
+
 		await TestBed.configureTestingModule({
 			imports: [RaceViewer],
-		}).compileComponents();
+		})
+			.overrideComponent(RaceViewer, {
+				add: {
+					providers: [
+						{
+							provide: MotionTrackingService,
+							useValue: mockMotionTrackingService,
+						},
+						{
+							provide: OverlayRendererService,
+							useValue: mockOverlayRendererService,
+						},
+					],
+				},
+			})
+			.compileComponents();
 
 		fixture = TestBed.createComponent(RaceViewer);
 		component = fixture.componentInstance;
@@ -20,33 +51,9 @@ describe('RaceViewer', () => {
 		expect(component).toBeTruthy();
 	});
 
-	it('should show dropzone initially', () => {
+	it('should contain video player component', () => {
 		const compiled = fixture.nativeElement as HTMLElement;
-		expect(compiled.querySelector('.dropzone')).toBeTruthy();
-	});
-
-	it('should accept .mp4 file and update videoSrc', () => {
-		const file = new File(['dummy'], 'test.mp4', { type: 'video/mp4' });
-		const event = new DragEvent('drop', {
-			dataTransfer: new DataTransfer(),
-		});
-		event.dataTransfer?.items.add(file);
-		component.onDrop(event);
-		fixture.detectChanges();
-		expect(component.videoSrc()).toContain('blob:');
-	});
-
-	it('should not accept non-video files', () => {
-		const file = new File(['dummy'], 'test.txt', { type: 'text/plain' });
-		const event = new DragEvent('drop', {
-			dataTransfer: new DataTransfer(),
-		});
-		event.dataTransfer?.items.add(file);
-		// const alertSpy = spyOn(window, 'alert');
-		component.onDrop(event);
-		fixture.detectChanges();
-		// expect(alertSpy).toHaveBeenCalledWith('Please drop an .mp4 or .mov file.');
-    // TODO change to a proper notification system
+		expect(compiled.querySelector('app-video-player')).toBeTruthy();
 	});
 
 	it('should render sidebar controls as disabled', () => {
@@ -154,6 +161,7 @@ describe('RaceViewer', () => {
 
 		it('should select start/finish point when canvas is clicked in start/finish mode', () => {
 			component.mode.set('start-finish');
+			component.trackEditor.mode.set('start-finish');
 			component.trackLine.set([
 				{ x: 100, y: 100 },
 				{ x: 200, y: 200 },
@@ -172,6 +180,7 @@ describe('RaceViewer', () => {
 
 		it('should confirm start/finish point and exit mode when "Confirm Start/Finish" is clicked', () => {
 			component.mode.set('start-finish');
+			component.trackEditor.mode.set('start-finish');
 			component.trackLine.set([
 				{ x: 10, y: 10 },
 				{ x: 20, y: 20 },
