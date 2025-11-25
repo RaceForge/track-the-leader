@@ -53,3 +53,4 @@ Thumbs.db
 # ML models (large files)
 public/assets/*.onnx
 public/assets/*.tflite
+public/assets/*.pt
