@@ -12,9 +12,20 @@
 	</div>
 </div>
 } @else {
+@if (notification()) {
+<div class="notification" [class]="'notification-' + notification()!.type" (click)="dismissNotification()">
+	<span class="notification-message">{{ notification()!.message }}</span>
+	<button class="notification-close" type="button" aria-label="Dismiss notification">×</button>
+</div>
+}
 @if (isSelectingStartFinish()) {
 <div class="mode-overlay">
 	<div class="mode-message">Click Start/Finish line on the track</div>
+</div>
+}
+@if (isMarkingCars()) {
+<div class="mode-overlay">
+		<div class="mode-message">Click on RC cars to mark them ({{ manualSelections().length }} selected)</div>
 </div>
 }
 <div class="viewer-container">
@@ -30,7 +41,7 @@
 			<canvas
 				#overlayCanvas
 				(click)="onCanvasClick($event)"
-				[class.interactive]="isMapping() || isSelectingStartFinish()"
+				[class.interactive]="isMapping() || isSelectingStartFinish() || isMarkingCars()"
 			></canvas>
 		</div>
 	</div>
@@ -73,7 +84,43 @@
 		</div>
 
 		<div class="sidebar-section">
-			<h3>Controls</h3>
+			<h3>Car Detection</h3>
+			@if (mode() === 'locked' && !isMarkingCars()) {
+				<div class="controls-group">
+					<button (click)="onMarkCars()" [disabled]="!canMarkCars()">Mark Cars</button>
+				</div>
+			}
+			@if (isMarkingCars()) {
+				<div class="controls-group">
+					<button (click)="onConfirmCarSelection()" [disabled]="manualSelections().length === 0">Confirm Selection</button>
+					<button (click)="onCancelCarMarking()">Cancel</button>
+				</div>
+				<div class="status-text">
+					Selected: {{ manualSelections().length }} cars<br>
+					Click to add, click box to remove
+				</div>
+			}
+			@if (manualSelections().length > 0 && !isMarkingCars()) {
+				<div class="status-text success">✓ {{ manualSelections().length }} cars selected</div>
+				<div class="controls-group">
+					<button (click)="onRunSamSegmentation()" [disabled]="segmentationInProgress()">
+						Run SAM3 Segmentation
+					</button>
+				</div>
+				@if (segmentationInProgress()) {
+					<div class="status-text">Running SAM3 segmentation...</div>
+				}
+				@if (segmentationError()) {
+					<div class="status-text error">{{ segmentationError() }}</div>
+				}
+				@if (!segmentationInProgress() && segmentationOverlays().size > 0) {
+					<div class="status-text success">✓ SAM3 masks ready</div>
+				}
+			}
+		</div>
+
+		<div class="sidebar-section">
+			<h3>Tracking Controls</h3>
 			<div class="controls-group">
 				<button (click)="onStartTracking()" [disabled]="!canStartTracking()">Start Tracking</button>
 			</div>

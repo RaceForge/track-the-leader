@@ -26,6 +26,7 @@
 		"@angular/router": "^21.0.0",
 		"@angular/ssr": "^21.0.0",
 		"@ngx-dropzone/cdk": "^20.0.0",
+		"onnxruntime-web": "^1.23.2",
 		"opencv.js": "^1.2.1",
 		"rxjs": "~7.8.0",
 		"tslib": "^2.3.0"
@@ -35,8 +36,10 @@
 		"@angular/cli": "^21.0.0",
 		"@angular/compiler-cli": "^21.0.0",
 		"@biomejs/biome": "2.3.7",
+		"@techstark/opencv-js": "4.12.0-release.1",
 		"@types/jasmine": "~5.1.0",
 		"@types/node": "^20.17.19",
+		"@webgpu/types": "^0.1.66",
 		"jasmine-core": "~5.9.0",
 		"karma": "~6.4.0",
 		"karma-chrome-launcher": "~3.2.0",

@@ -213,3 +213,68 @@ input[type='checkbox'] {
 	background: rgba(0, 255, 0, 0.2);
 	color: #0f0;
 }
+
+/* Notification toast styles */
+.notification {
+	position: fixed;
+	top: 1rem;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 1000;
+	padding: 0.75rem 1.5rem;
+	border-radius: 8px;
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+	cursor: pointer;
+	animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+	from {
+		opacity: 0;
+		transform: translateX(-50%) translateY(-1rem);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(-50%) translateY(0);
+	}
+}
+
+.notification-info {
+	background: #1a73e8;
+	color: white;
+	border: 1px solid #1557b0;
+}
+
+.notification-error {
+	background: #d32f2f;
+	color: white;
+	border: 1px solid #b71c1c;
+}
+
+.notification-success {
+	background: #2e7d32;
+	color: white;
+	border: 1px solid #1b5e20;
+}
+
+.notification-message {
+	font-weight: 500;
+}
+
+.notification-close {
+	background: none;
+	border: none;
+	color: inherit;
+	font-size: 1.5rem;
+	padding: 0;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0.7;
+}
+
+.notification-close:hover {
+	opacity: 1;
+}

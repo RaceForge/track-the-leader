@@ -7,7 +7,21 @@ Track-The-Leader is a motorsport broadcast-style HUD application built with Angu
 Currently in active development, the application features:
 - **Local Video Playback**: Drag and drop `.mp4` or `.mov` files to play them locally without uploading.
 - **Broadcast HUD**: A dedicated sidebar for leaderboards and tracking controls.
-- **Overlay System**: A canvas overlay aligned with the video for future computer vision visualizations.
+- **Overlay System**: A canvas overlay aligned with the video for computer vision visualizations.
+- **Track Line Mapping**: Interactive track definition with polyline drawing and start/finish selection.
+- **Camera Stabilization**: Homography-based motion compensation using OpenCV.js for track line stabilization.
+- **RC Car Segmentation**: Interactive car marking using SAM3 (Segment Anything Model 3) with motion-based proposals (Milestone 3 - Core services implemented).
+
+## Setup
+
+### Prerequisites
+- Node.js 18+ and pnpm
+
+### Installation
+
+```bash
+pnpm install
+```
 
 ## Development server
 
@@ -60,6 +74,82 @@ ng e2e
 ```
 
 Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+
+## Usage
+
+### 1. Load Video
+Drag and drop an `.mp4` or `.mov` file onto the application.
+
+### 2. Define Track Line (Milestone 2)
+1. Click **"Select Track Line"** button
+2. Click along the track centerline in the direction of racing (minimum 5 points)
+3. Click **"Finish"** when done
+4. Click on the track to select the start/finish point
+5. Click **"Confirm Start/Finish"**
+
+### 3. Enable Stabilization (Milestone 2.5)
+Toggle **"Stabilized Track Line"** to see the track line compensate for camera movement using homography transformations.
+
+### 4. Mark RC Cars (Milestone 3 - In Progress)
+After defining the track line:
+1. Click **"Mark Cars"** button to enter car marking mode
+2. Video pauses and shows motion-based proposal boxes
+3. Click on proposals to select which ones are RC cars
+4. Click **"Confirm Cars"** to run SAM3 segmentation
+5. System generates pixel-accurate masks and centroids for each car
+
+**Features:**
+- Motion-based proposal generation using frame differencing
+- Interactive car selection
+- SAM3 (Segment Anything Model 3) segmentation with WebGPU
+- Pixel-accurate masks and center points
+- Car seeds stored for future tracking milestones
+
+## Features by Milestone
+
+### Milestone 1: UI Foundation
+- Angular 20 standalone components
+- Drag-and-drop video loading
+- Broadcast-style HUD sidebar
+- Canvas overlay system
+
+### Milestone 2: Track Line Mapping
+- Interactive polyline drawing on video frame
+- Start/finish point selection
+- Undo/reset functionality
+- Track line persistence during playback
+
+### Milestone 2.5: Camera Stabilization
+- OpenCV.js integration for feature detection
+- ORB keypoint extraction and matching
+- Homography computation with RANSAC
+- Track line transformation to maintain alignment
+
+### Milestone 3: RC Car Segmentation (In Progress)
+- ✅ Motion-based proposal generation (ProposalGeneratorService)
+- ✅ SAM3 segmentation service structure (Sam3SegmentationService)
+- ⏳ SAM3 model integration with WebGPU
+- ⏳ Interactive "Mark Cars" UI flow
+- ⏳ Pixel-accurate segmentation masks
+- ⏳ Car seed initialization for tracking
+
+**Status:** Core services implemented, ready for model integration and UI development.
+
+## Architecture
+
+### Services
+- **HomographyService**: Camera motion stabilization using OpenCV.js ✅
+- **ProposalGeneratorService**: Motion-based car detection using frame differencing ✅
+- **Sam3SegmentationService**: Interactive segmentation with SAM3 (placeholder ready for model) ⏳
+
+### Components
+- **RaceViewer**: Main video player with overlay canvas and sidebar controls
+
+### Technologies
+- Angular 20 with standalone components and signals
+- OpenCV.js (WASM) for computer vision
+- SAM3 with WebGPU for segmentation
+- Cloudflare Pages for deployment
 
 ## Additional Resources
 

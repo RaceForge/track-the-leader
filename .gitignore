@@ -10,6 +10,7 @@
 /node_modules
 npm-debug.log
 yarn-error.log
+package-lock.json
 
 # IDEs and editors
 .idea/
@@ -48,3 +49,8 @@ Thumbs.db
 !.dev.vars.example
 .env*
 !.env.example
+
+# ML models (large files)
+public/assets/*.onnx
+public/assets/*.tflite
+public/assets/*.pt
