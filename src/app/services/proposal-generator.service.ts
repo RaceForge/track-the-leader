@@ -50,6 +50,9 @@ export class ProposalGeneratorService {
 	/** Difference threshold (0-255) */
 	readonly diffThreshold = signal<number>(30);
 
+	/** Maximum distance from track line for proposals (pixels) */
+	readonly trackProximityThreshold = signal<number>(200);
+
 	/** Next proposal ID */
 	private nextProposalId = 0;
 
@@ -240,14 +243,15 @@ export class ProposalGeneratorService {
 	 *
 	 * @param point - Point to check
 	 * @param trackLine - Track polyline
-	 * @param maxDistance - Maximum distance in pixels (default: 200)
+	 * @param maxDistance - Maximum distance in pixels (default: trackProximityThreshold signal value)
 	 * @returns True if point is within maxDistance of track line
 	 */
 	private isNearTrackLine(
 		point: Point2D,
 		trackLine: Point2D[],
-		maxDistance = 200,
+		maxDistance?: number,
 	): boolean {
+		const threshold = maxDistance ?? this.trackProximityThreshold();
 		if (trackLine.length < 2) return true;
 
 		// Check distance to each line segment
@@ -256,7 +260,7 @@ export class ProposalGeneratorService {
 			const p2 = trackLine[i + 1];
 
 			const dist = this.pointToSegmentDistance(point, p1, p2);
-			if (dist <= maxDistance) {
+			if (dist <= threshold) {
 				return true;
 			}
 		}
