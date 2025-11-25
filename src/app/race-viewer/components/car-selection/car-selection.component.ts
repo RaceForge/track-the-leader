@@ -202,23 +202,35 @@ export class CarSelectionComponent {
 		if (typeof document === 'undefined') {
 			return null;
 		}
+
+		const [x, y, w, h] = result.bbox;
+		// Ensure bbox is valid
+		if (w <= 0 || h <= 0) return null;
+
 		const maskCanvas = document.createElement('canvas');
-		maskCanvas.width = result.width;
-		maskCanvas.height = result.height;
+		maskCanvas.width = w;
+		maskCanvas.height = h;
 		const maskCtx = maskCanvas.getContext('2d');
 		if (!maskCtx) {
 			return null;
 		}
-		const maskImage = maskCtx.createImageData(result.width, result.height);
-		for (let i = 0; i < result.mask.length; i++) {
-			if (result.mask[i] > 0) {
-				const idx = i * 4;
-				maskImage.data[idx] = 0;
-				maskImage.data[idx + 1] = 255;
-				maskImage.data[idx + 2] = 0;
-				maskImage.data[idx + 3] = 100;
+
+		const maskImage = maskCtx.createImageData(w, h);
+
+		// Copy mask data from full mask to cropped mask
+		for (let r = 0; r < h; r++) {
+			for (let c = 0; c < w; c++) {
+				const srcIdx = (y + r) * result.width + (x + c);
+				if (result.mask[srcIdx] > 0) {
+					const dstIdx = (r * w + c) * 4;
+					maskImage.data[dstIdx] = 0;
+					maskImage.data[dstIdx + 1] = 255;
+					maskImage.data[dstIdx + 2] = 0;
+					maskImage.data[dstIdx + 3] = 100;
+				}
 			}
 		}
+
 		maskCtx.putImageData(maskImage, 0, 0);
 		return maskCanvas;
 	}

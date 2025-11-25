@@ -273,6 +273,9 @@ export class Sam3SegmentationService {
 		promptTensor: ort.Tensor;
 		width: number;
 		height: number;
+		prompt: SamPrompt;
+		originalWidth: number;
+		originalHeight: number;
 	} {
 		if (typeof document === 'undefined') {
 			throw new Error('SAM2 preprocessing requires a browser environment');
@@ -365,6 +368,9 @@ export class Sam3SegmentationService {
 			promptTensor,
 			width: targetWidth,
 			height: targetHeight,
+			prompt,
+			originalWidth: imageData.width,
+			originalHeight: imageData.height,
 		};
 	}
 
@@ -382,6 +388,9 @@ export class Sam3SegmentationService {
 		promptTensor: ort.Tensor;
 		width: number;
 		height: number;
+		prompt: SamPrompt;
+		originalWidth: number;
+		originalHeight: number;
 	}): Promise<Uint8ClampedArray> {
 		if (!this.model || !this.imageInputName || !this.maskOutputName) {
 			throw new Error('SAM2 model is not fully configured');
@@ -402,34 +411,53 @@ export class Sam3SegmentationService {
 		const results = await this.model.run(feeds);
 		console.log('Inference results:', Object.keys(results));
 
-		// SAM2 encoder outputs embeddings, not masks directly
-		// For a complete pipeline, you'd need the decoder model
-		// As a placeholder, we'll create a simple mask from the prompt box
-		const outputTensor = results[this.maskOutputName];
-		if (!outputTensor) {
-			console.warn(
-				`Expected output "${this.maskOutputName}" not found. Available:`,
-				Object.keys(results),
-			);
-			// Return a simple box-based mask as fallback
-			return this.createBoxMask(preprocessed.width, preprocessed.height);
-		}
-
-		const data = outputTensor.data as Float32Array | Float64Array | number[];
-		const mask = new Uint8ClampedArray(data.length);
-		for (let i = 0; i < data.length; i++) {
-			mask[i] = data[i] > 0.5 ? 255 : 0;
-		}
-		return mask;
+		// SAM2 encoder outputs embeddings, not masks directly.
+		// Since we don't have the decoder, we cannot generate a real segmentation mask.
+		// We return a box-based mask as a fallback.
+		return this.createBoxMask(
+			preprocessed.width,
+			preprocessed.height,
+			preprocessed.prompt,
+			preprocessed.originalWidth,
+			preprocessed.originalHeight,
+		);
 	}
 
 	/**
 	 * Create a simple box-based mask as fallback when decoder is not available.
 	 */
-	private createBoxMask(width: number, height: number): Uint8ClampedArray {
-		// Return a full mask for now - in production you'd use the prompt box
+	private createBoxMask(
+		width: number,
+		height: number,
+		prompt: SamPrompt,
+		originalWidth: number,
+		originalHeight: number,
+	): Uint8ClampedArray {
 		const mask = new Uint8ClampedArray(width * height);
-		mask.fill(255);
+
+		if (prompt.box) {
+			// Scale box from original dimensions to target dimensions
+			const scaleX = width / originalWidth;
+			const scaleY = height / originalHeight;
+
+			const x = Math.floor(prompt.box[0] * scaleX);
+			const y = Math.floor(prompt.box[1] * scaleY);
+			const w = Math.floor(prompt.box[2] * scaleX);
+			const h = Math.floor(prompt.box[3] * scaleY);
+
+			// Fill the box in the mask
+			for (let r = y; r < y + h; r++) {
+				if (r < 0 || r >= height) continue;
+				for (let c = x; c < x + w; c++) {
+					if (c < 0 || c >= width) continue;
+					mask[r * width + c] = 255;
+				}
+			}
+		} else {
+			// Fallback to full mask if no box provided
+			mask.fill(255);
+		}
+
 		return mask;
 	}
 
