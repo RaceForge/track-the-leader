@@ -3,10 +3,12 @@ import {
 	Component,
 	ElementRef,
 	ViewChild,
+	inject,
 	model,
 	output,
 	signal,
 } from '@angular/core';
+import { NotificationService } from '../../../services/notification.service';
 
 @Component({
 	selector: 'app-video-player',
@@ -16,6 +18,8 @@ import {
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VideoPlayerComponent {
+	private readonly notificationService = inject(NotificationService);
+
 	videoSrc = model<string | null>(null);
 	isDragging = signal(false);
 	videoFps = signal(30);
@@ -48,8 +52,7 @@ export class VideoPlayerComponent {
 				const url = URL.createObjectURL(file);
 				this.videoSrc.set(url);
 			} else {
-				// TODO: Emit error notification
-				alert('Please drop an .mp4 or .mov file.');
+				this.notificationService.show('Please drop an .mp4 or .mov file.', 'error');
 			}
 		}
 	}
