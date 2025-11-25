@@ -19,11 +19,11 @@ import {
 	type SamMaskResult,
 	type SamPrompt,
 } from '../services/sam3-segmentation.service';
+import { type Point2D } from '../types/geometry';
 
-// biome-ignore lint: OpenCV global provided via script tag
+// biome-ignore lint/suspicious/noExplicitAny: OpenCV global provided via script tag
 declare const cv: any;
 
-type Point2D = { x: number; y: number };
 type CvMatLike = { cols: number; rows: number; delete(): void };
 
 type ViewMode =

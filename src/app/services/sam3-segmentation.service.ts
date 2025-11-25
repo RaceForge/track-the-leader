@@ -1,19 +1,20 @@
 import { Injectable, signal } from '@angular/core';
 import * as ort from 'onnxruntime-web';
+import { type Point2D, type BBox } from '../types/geometry';
+
+export type { Point2D };
 
 type WebGpuNavigator = Navigator & { gpu?: GPU };
 type OrtTensorMetadata = { dimensions?: readonly number[] };
 
-export type Point2D = { x: number; y: number };
-
 export type SamPrompt = {
 	point: Point2D;
-	box?: [number, number, number, number]; // Optional bounding box hint
+	box?: BBox; // Optional bounding box hint
 };
 
 export type SamMaskResult = {
 	mask: Uint8ClampedArray; // Binary mask (0 or 255)
-	bbox: [number, number, number, number]; // [x, y, width, height]
+	bbox: BBox; // [x, y, width, height]
 	centroid: Point2D;
 	width: number;
 	height: number;

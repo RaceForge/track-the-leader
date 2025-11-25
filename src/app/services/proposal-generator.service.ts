@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
+import { type Point2D, type BBox } from '../types/geometry';
 
-export type Point2D = { x: number; y: number };
+export type { Point2D };
 
 type CvNamespace = typeof import('@techstark/opencv-js');
 type CvMat = InstanceType<CvNamespace['Mat']>;
@@ -9,7 +10,7 @@ declare const cv: CvNamespace;
 
 export type Proposal = {
 	id: number;
-	bbox: [number, number, number, number]; // [x, y, width, height]
+	bbox: BBox; // [x, y, width, height]
 	centroid: Point2D;
 	area: number;
 };

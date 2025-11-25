@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
+import { type Point2D, type Homography } from '../types/geometry';
 
-export type Point2D = { x: number; y: number };
-export type Homography = number[][]; // 3x3 transformation matrix
+export type { Point2D, Homography };
 
 /**
  * OpenCV match object representing correspondence between features
