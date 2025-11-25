@@ -212,7 +212,7 @@ export class RaceViewer implements OnDestroy {
 			}
 
 			this.mode.set('locked');
-			this.playVideo();
+			// this.playVideo();
 		}
 	}
 
@@ -225,7 +225,7 @@ export class RaceViewer implements OnDestroy {
 			return;
 		}
 		this.initializeTemplates();
-		this.playVideo();
+		// this.playVideo();
 		console.log('Tracking started');
 	}
 
@@ -246,7 +246,7 @@ export class RaceViewer implements OnDestroy {
 		console.log('Selected cars:', this.manualSelections());
 		this.mode.set('locked');
 		this.initializeTemplates();
-		this.playVideo();
+		// this.playVideo();
 		void this.runSegmentationForSelections();
 	}
 
@@ -651,11 +651,6 @@ export class RaceViewer implements OnDestroy {
 			}
 
 			const overlays = new Map<number, HTMLCanvasElement>();
-			const updatedSelections: Array<{
-				id: number;
-				center: Point2D;
-				bbox: [number, number, number, number];
-			}> = [];
 
 			for (const selection of selections) {
 				const prompt: SamPrompt = {
@@ -663,18 +658,15 @@ export class RaceViewer implements OnDestroy {
 					box: selection.bbox,
 				};
 				const result = await this.sam3Service.runSegmentation(frameData, prompt);
-				updatedSelections.push({
-					id: selection.id,
-					center: result.centroid,
-					bbox: result.bbox,
-				});
+
+				// Create visual overlay from mask, but keep original selection unchanged
 				const overlay = this.createMaskOverlay(result);
 				if (overlay) {
 					overlays.set(selection.id, overlay);
 				}
 			}
 
-			this.manualSelections.set(updatedSelections);
+			// Only update overlays, preserve original manual selections
 			this.segmentationOverlays.set(overlays);
 
 			if (this.mode() === 'locked') {

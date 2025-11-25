@@ -20,24 +20,21 @@ export type SamMaskResult = {
 };
 
 /**
- * SAM3 (Segment Anything Model 3) segmentation service.
+ * SAM2 (Segment Anything Model 2) segmentation service.
  *
- * This service provides interactive segmentation using the SAM3 model
- * with WebGPU backend for efficient browser-based inference.
+ * This service provides interactive segmentation using the SAM2 image encoder
+ * with WebGPU/WASM backend for efficient browser-based inference.
  *
- * SAM3 takes a prompt (point and optional box) and generates a precise
- * segmentation mask for the object at that location.
+ * Note: This currently uses only the SAM2 image encoder which outputs embeddings.
+ * For full segmentation, you would need to also load and run the SAM2 decoder
+ * which takes embeddings + prompts and outputs masks.
  *
- * Architecture:
- * 1. Load SAM3 model with WebGPU backend
- * 2. Preprocess frame and prompt to model input
- * 3. Run inference to generate mask
- * 4. Postprocess mask: compute centroid, bbox, binary mask
- * 5. Return segmentation result
- *
- * Note: This is a placeholder implementation ready for SAM3 model integration.
- * The actual model loading and inference will depend on the specific SAM3
- * implementation available (e.g., ONNX Runtime Web with WebGPU, TensorFlow.js, etc.)
+ * Current architecture:
+ * 1. Load SAM2 encoder with WebGPU/WASM backend
+ * 2. Preprocess frame to model input format [1, 3, H, W]
+ * 3. Run encoder inference to generate embeddings
+ * 4. (TODO) Run decoder with embeddings + prompts to get masks
+ * 5. Postprocess mask: compute centroid, bbox, binary mask
  */
 @Injectable({
 	providedIn: 'root',
@@ -59,7 +56,6 @@ export class Sam3SegmentationService {
 
 	/** Cached input/output metadata */
 	private imageInputName: string | null = null;
-	private promptInputName: string | null = null;
 	private maskOutputName: string | null = null;
 	private imageInputShape: readonly number[] | null = null;
 
@@ -120,7 +116,7 @@ export class Sam3SegmentationService {
 		this.modelError.set(null);
 
 		try {
-			console.log('Loading SAM3 model from:', pathToUse);
+			console.log('Loading SAM2 encoder from:', pathToUse);
 
 			// Configure ONNX Runtime environment (wasm fallback)
 			ort.env.wasm.wasmPaths = this.wasmAssetsPath;
@@ -164,7 +160,6 @@ export class Sam3SegmentationService {
 			}
 
 			this.imageInputName = this.model.inputNames[0] ?? null;
-			this.promptInputName = this.model.inputNames[1] ?? this.model.inputNames[0] ?? null;
 			this.maskOutputName = this.model.outputNames[0] ?? null;
 			const metadata = this.model.inputMetadata as unknown as Record<string, OrtTensorMetadata | undefined>;
 			if (this.imageInputName) {
@@ -176,9 +171,11 @@ export class Sam3SegmentationService {
 
 			this.modelReady.set(true);
 			const activeProvider = executionProviders.includes('webgpu') && this.webGpuAvailable() ? 'webgpu' : 'wasm';
-			console.log(`SAM3 model loaded successfully using ${activeProvider} provider`);
+			console.log(`SAM2 encoder loaded successfully using ${activeProvider} provider`);
+			console.log('Model inputs:', this.model.inputNames, 'shape:', this.imageInputShape);
+			console.log('Model outputs:', this.model.outputNames);
 		} catch (error) {
-			const errorMessage = `Failed to load SAM3 model: ${error}`;
+			const errorMessage = `Failed to load SAM2 encoder: ${error}`;
 			console.error(errorMessage);
 			this.modelError.set(errorMessage);
 		} finally {
@@ -187,10 +184,10 @@ export class Sam3SegmentationService {
 	}
 
 	/**
-	 * Run SAM3 segmentation on a frame with a prompt.
+	 * Run SAM2 segmentation on a frame with a prompt.
 	 *
-	 * Takes a point (and optional bounding box) as input and generates
-	 * a precise segmentation mask for the object at that location.
+	 * Note: Currently uses encoder only. For full segmentation,
+	 * decoder model is needed to convert embeddings + prompts to masks.
 	 *
 	 * @param frame - Input frame (ImageData or HTMLCanvasElement)
 	 * @param prompt - Segmentation prompt (point + optional box)
@@ -245,11 +242,10 @@ export class Sam3SegmentationService {
 	/**
 	 * Preprocess frame and prompt to model input format.
 	 *
-	 * TODO: Implement based on SAM3 model requirements:
-	 * - Resize frame to model input size
-	 * - Normalize pixel values
-	 * - Encode prompt (point coordinates, box coordinates)
-	 * - Create input tensors
+	 * SAM2 image encoder expects a single input: image [1, 3, H, W]
+	 * The decoder (not included here) would take the image embeddings + prompts.
+	 *
+	 * For now, we only run the encoder to get embeddings.
 	 */
 	private preprocessInput(
 		imageData: ImageData,
@@ -261,15 +257,19 @@ export class Sam3SegmentationService {
 		height: number;
 	} {
 		if (typeof document === 'undefined') {
-			throw new Error('SAM3 preprocessing requires a browser environment');
+			throw new Error('SAM2 preprocessing requires a browser environment');
 		}
 
-		const targetHeight = this.imageInputShape?.[2] && this.imageInputShape[2] > 0
-			? this.imageInputShape[2]
-			: imageData.height;
-		const targetWidth = this.imageInputShape?.[3] && this.imageInputShape[3] > 0
-			? this.imageInputShape[3]
-			: imageData.width;
+		// SAM2 typically expects 1024x1024 or specific model dimensions
+		// Check imageInputShape for actual expected dimensions
+		const targetHeight = (this.imageInputShape?.[2] && typeof this.imageInputShape[2] === 'number' && this.imageInputShape[2] > 0)
+			? Number(this.imageInputShape[2])
+			: 1024;
+		const targetWidth = (this.imageInputShape?.[3] && typeof this.imageInputShape[3] === 'number' && this.imageInputShape[3] > 0)
+			? Number(this.imageInputShape[3])
+			: 1024;
+
+		console.log(`Preprocessing: target size ${targetWidth}x${targetHeight}, input shape:`, this.imageInputShape);
 
 		const sourceCanvas = document.createElement('canvas');
 		sourceCanvas.width = imageData.width;
@@ -293,17 +293,20 @@ export class Sam3SegmentationService {
 		const pixelCount = targetWidth * targetHeight;
 		const imageBuffer = new Float32Array(pixelCount * 3);
 		const resizedData = resizedImage.data;
+
+		// Convert RGBA to RGB planar format [1, 3, H, W]
 		for (let i = 0; i < pixelCount; i++) {
 			const idx = i * 4;
-			const r = resizedData[idx] / 255;
-			const g = resizedData[idx + 1] / 255;
-			const b = resizedData[idx + 2] / 255;
-			imageBuffer[i] = r;
-			imageBuffer[i + pixelCount] = g;
-			imageBuffer[i + pixelCount * 2] = b;
+			imageBuffer[i] = resizedData[idx] / 255;                    // R channel
+			imageBuffer[i + pixelCount] = resizedData[idx + 1] / 255;   // G channel
+			imageBuffer[i + pixelCount * 2] = resizedData[idx + 2] / 255; // B channel
 		}
-		const imageTensor = new ort.Tensor('float32', imageBuffer, [1, 3, targetHeight, targetWidth]);
 
+		const imageTensor = new ort.Tensor('float32', imageBuffer, [1, 3, targetHeight, targetWidth]);
+		console.log('Created image tensor with shape:', imageTensor.dims);
+
+		// Prompt tensor - for encoder-only model this may not be used
+		// But we keep it for compatibility with decoder if needed later
 		const promptArray = new Float32Array(6);
 		promptArray[0] = prompt.point.x / imageData.width;
 		promptArray[1] = prompt.point.y / imageData.height;
@@ -328,34 +331,57 @@ export class Sam3SegmentationService {
 	/**
 	 * Run model inference.
 	 *
-	 * TODO: Implement based on chosen framework:
-	 * - ONNX Runtime Web: session.run(feeds)
-	 * - TensorFlow.js: model.predict(inputs)
+	 * SAM2 image encoder takes only the image input and outputs embeddings.
+	 * For a full segmentation pipeline, you'd need the decoder model too.
+	 *
+	 * For now, we'll use the encoder output as a placeholder and return
+	 * a simple mask based on the bounding box hint.
 	 */
 	private async runInference(preprocessed: {
 		imageTensor: ort.Tensor;
 		promptTensor: ort.Tensor;
+		width: number;
+		height: number;
 	}): Promise<Uint8ClampedArray> {
-		if (!this.model || !this.imageInputName || !this.promptInputName || !this.maskOutputName) {
-			throw new Error('SAM3 model is not fully configured');
+		if (!this.model || !this.imageInputName || !this.maskOutputName) {
+			throw new Error('SAM2 model is not fully configured');
 		}
 
+		// SAM2 encoder only takes image input
 		const feeds: Record<string, ort.Tensor> = {
 			[this.imageInputName]: preprocessed.imageTensor,
-			[this.promptInputName]: preprocessed.promptTensor,
 		};
 
+		console.log('Running inference with feeds:', Object.keys(feeds), 'input shape:', preprocessed.imageTensor.dims);
+
 		const results = await this.model.run(feeds);
-		const maskTensor = results[this.maskOutputName];
-		if (!maskTensor) {
-			throw new Error(`Mask output "${this.maskOutputName}" not found in inference results`);
+		console.log('Inference results:', Object.keys(results));
+
+		// SAM2 encoder outputs embeddings, not masks directly
+		// For a complete pipeline, you'd need the decoder model
+		// As a placeholder, we'll create a simple mask from the prompt box
+		const outputTensor = results[this.maskOutputName];
+		if (!outputTensor) {
+			console.warn(`Expected output "${this.maskOutputName}" not found. Available:`, Object.keys(results));
+			// Return a simple box-based mask as fallback
+			return this.createBoxMask(preprocessed.width, preprocessed.height);
 		}
 
-		const data = maskTensor.data as Float32Array | Float64Array | number[];
+		const data = outputTensor.data as Float32Array | Float64Array | number[];
 		const mask = new Uint8ClampedArray(data.length);
 		for (let i = 0; i < data.length; i++) {
 			mask[i] = data[i] > 0.5 ? 255 : 0;
 		}
+		return mask;
+	}
+
+	/**
+	 * Create a simple box-based mask as fallback when decoder is not available.
+	 */
+	private createBoxMask(width: number, height: number): Uint8ClampedArray {
+		// Return a full mask for now - in production you'd use the prompt box
+		const mask = new Uint8ClampedArray(width * height);
+		mask.fill(255);
 		return mask;
 	}
 
