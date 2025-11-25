@@ -10,7 +10,7 @@ import {
 
 @Component({
 	selector: 'app-video-player',
-	standalone: true,
+
 	templateUrl: './video-player.component.html',
 	styleUrl: './video-player.component.css',
 	changeDetection: ChangeDetectionStrategy.OnPush,

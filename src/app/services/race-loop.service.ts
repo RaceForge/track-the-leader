@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HomographyService } from './homography.service';
 import { MotionTrackingService } from './motion-tracking.service';
 import { OverlayRendererService } from './overlay-renderer.service';
